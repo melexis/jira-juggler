@@ -78,7 +78,7 @@ class JiraJuggler(object):
         props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(prop='allocate', value=issue.fields.assignee)
         props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(prop='effort', value=issue.fields.aggregatetimeoriginalestimate) #todo: this is seconds, convert to days
         for link in issue.fields.issuelinks:
-            if hasattr(link, 'inwardIssue'): #is blocked by (TODO: other relations as well?)
+            if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
                 props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(prop='depends', value=link.inwardIssue.key)
         return props
 
