@@ -25,12 +25,21 @@ TASKJUGGLER_PROPERTY_TRANSLATION = {
 }
 
 JUGGLER_TASK_TEMPLATE = '''
-task {id} "{key}: {description}" {{
+{tabulator}task {id} "{key}: {description}" {{
 {props}
-}}
+{tabulator}}}
 '''
 
-JUGGLER_TASK_PROPERTY_TEMPLATE = '    {prop} {value}\n'
+JUGGLER_PARENT_TASK_TEMPLATE_START = '''
+{tabulator}task {id} "{key}: Parent {description}" {{
+'''
+JUGGLER_PARENT_TASK_TEMPLATE_END = '''
+{tabulator}}}
+'''
+
+JUGGLER_TASK_PROPERTY_TEMPLATE = '{tabulator}{prop} {value}\n'
+
+TAB = '\t'
 
 def set_logging_level(loglevel):
     '''
@@ -65,7 +74,8 @@ class JiraJuggler(object):
         self.jirahandle = JIRA(url, basic_auth=(user, password))
         self.issue_count = 0
 
-    def get_issue_properties(self, issue):
+    @staticmethod
+    def get_issue_properties(issue, tabulator=''):
         '''
         Convert JIRA issue properties to the task juggler syntax
 
@@ -75,12 +85,71 @@ class JiraJuggler(object):
             String representation of the issue properties in juggler syntax
         '''
         props = ''
-        props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(prop='allocate', value=issue.fields.assignee)
-        props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(prop='effort', value=issue.fields.aggregatetimeoriginalestimate) #todo: this is seconds, convert to days
-        for link in issue.fields.issuelinks:
-            if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
-                props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(prop='depends', value=link.inwardIssue.key)
+        if hasattr(issue.fields, 'assignee'):
+            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator, prop='allocate', value=issue.fields.assignee)
+        if hasattr(issue.fields, 'aggregatetimeoriginalestimate'):
+            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator, prop='effort', value=issue.fields.aggregatetimeoriginalestimate) #todo: this is seconds, convert to days
+        if hasattr(issue.fields, 'issuelinks'):
+            for link in issue.fields.issuelinks:
+                if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
+                    props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator, prop='depends', value=link.inwardIssue.key)
         return props
+
+    def get_issue_string(self, issue, tabulator=''):
+        '''
+        Convert JIRA issue to the task juggler syntax
+
+        Args:
+            issue The issue to work on
+        Returns:
+            String representation of the issue in juggler syntax
+        '''
+        issue_string = ''
+        children = self.get_subtasks(issue)
+        if children:
+            issue_string += JUGGLER_PARENT_TASK_TEMPLATE_START.format(tabulator=tabulator,
+                                                                      id=issue.key,
+                                                                      key=issue.key,
+                                                                      description=issue.fields.summary)
+            for child in children:
+                child_issue = self.jirahandle.issue(child.key)
+                issue_string += self.get_issue_string(child_issue, tabulator=tabulator+TAB)
+            issue_string += JUGGLER_PARENT_TASK_TEMPLATE_END.format(tabulator=tabulator)
+
+        elif not self.is_child(issue) or tabulator == TAB:
+            issue_string += JUGGLER_TASK_TEMPLATE.format(tabulator=tabulator,
+                                                         id=issue.key,
+                                                         key=issue.key,
+                                                         description=issue.fields.summary,
+                                                         props=self.get_issue_properties(issue, tabulator=tabulator+TAB))
+        return issue_string
+
+    @staticmethod
+    def get_subtasks(issue):
+        '''
+        Check whether a ticket is a parent-task
+
+        Args:
+            issue The issue to check
+        Returns:
+            True if the given issue is a parent-task, False otherwise.
+        '''
+        print(issue.__dict__)
+        if hasattr(issue.fields, 'subtasks'):
+            return issue.fields.subtasks
+        return None
+
+    @staticmethod
+    def is_child(issue):
+        '''
+        Check whether a ticket is a child-task
+
+        Args:
+            issue The issue to check
+        Returns:
+            True if the given issue is a child-task, False otherwise.
+        '''
+        return hasattr(issue.fields, 'parent') and issue.fields.parent
 
     def generate(self, output):
         '''
@@ -105,10 +174,7 @@ class JiraJuggler(object):
 
                 for issue in issues:
                     logging.debug('%s: %s', issue.key, issue.fields.summary)
-                    out.write(JUGGLER_TASK_TEMPLATE.format(id=issue.key,
-                                                           key=issue.key,
-                                                           description=issue.fields.summary,
-                                                           props=self.get_issue_properties(issue)))
+                    out.write(self.get_issue_string(issue))
 
 if __name__ == "__main__":
     ARGPARSER = argparse.ArgumentParser()
