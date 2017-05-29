@@ -31,7 +31,7 @@ JUGGLER_TASK_TEMPLATE = '''
 '''
 
 JUGGLER_PARENT_TASK_TEMPLATE_START = '''
-{tabulator}task {id} "{key}: Parent {description}" {{
+{tabulator}task {id} "{key}: {description}" {{
 '''
 JUGGLER_PARENT_TASK_TEMPLATE_END = '''
 {tabulator}}}
@@ -86,13 +86,22 @@ class JiraJuggler(object):
         '''
         props = ''
         if hasattr(issue.fields, 'assignee'):
-            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator, prop='allocate', value=issue.fields.assignee)
-        if hasattr(issue.fields, 'aggregatetimeoriginalestimate'):
-            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator, prop='effort', value=issue.fields.aggregatetimeoriginalestimate) #todo: this is seconds, convert to days
+            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator,
+                                                           prop='allocate',
+                                                           value=issue.fields.assignee.name)
+        if hasattr(issue.fields, 'aggregatetimeoriginalestimate') and issue.fields.aggregatetimeoriginalestimate:
+            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator,
+                                                           prop='effort',
+                                                           value=str(issue.fields.aggregatetimeoriginalestimate/(8.0*60*60))+'d')
+        else:
+            logging.warning('No estimate found for %s, assuming 1 day', issue.key)
+            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator, prop='effort', value='1d')
         if hasattr(issue.fields, 'issuelinks'):
             for link in issue.fields.issuelinks:
                 if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
-                    props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator, prop='depends', value=link.inwardIssue.key)
+                    props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator,
+                                                                   prop='depends',
+                                                                   value='!'+link.inwardIssue.key.replace('-', '_'))
         return props
 
     def get_issue_string(self, issue, tabulator=''):
@@ -108,9 +117,9 @@ class JiraJuggler(object):
         children = self.get_subtasks(issue)
         if children:
             issue_string += JUGGLER_PARENT_TASK_TEMPLATE_START.format(tabulator=tabulator,
-                                                                      id=issue.key,
+                                                                      id=issue.key.replace('-', '_'),
                                                                       key=issue.key,
-                                                                      description=issue.fields.summary)
+                                                                      description=issue.fields.summary.replace('\"', '\\\"'))
             for child in children:
                 child_issue = self.jirahandle.issue(child.key)
                 issue_string += self.get_issue_string(child_issue, tabulator=tabulator+TAB)
@@ -118,9 +127,9 @@ class JiraJuggler(object):
 
         elif not self.is_child(issue) or tabulator == TAB:
             issue_string += JUGGLER_TASK_TEMPLATE.format(tabulator=tabulator,
-                                                         id=issue.key,
+                                                         id=issue.key.replace('-', '_'),
                                                          key=issue.key,
-                                                         description=issue.fields.summary,
+                                                         description=issue.fields.summary.replace('\"', '\\\"'),
                                                          props=self.get_issue_properties(issue, tabulator=tabulator+TAB))
         return issue_string
 
@@ -134,7 +143,6 @@ class JiraJuggler(object):
         Returns:
             True if the given issue is a parent-task, False otherwise.
         '''
-        print(issue.__dict__)
         if hasattr(issue.fields, 'subtasks'):
             return issue.fields.subtasks
         return None
