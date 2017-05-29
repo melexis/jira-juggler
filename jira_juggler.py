@@ -81,7 +81,7 @@ class JiraJuggler(object):
         Convert JIRA issue properties to the task juggler syntax
 
         Args:
-            issue: The issue to work on
+            issue (dict): The issue to work on
 
         Returns:
             str: String representation of the issue properties in juggler syntax
@@ -111,7 +111,7 @@ class JiraJuggler(object):
         Convert JIRA issue to the task juggler syntax
 
         Args:
-            issue: The issue to work on
+            issue (dict): The issue to work on
 
         Returns:
             str: String representation of the issue in juggler syntax
@@ -142,7 +142,7 @@ class JiraJuggler(object):
         Check whether a ticket is a parent-task
 
         Args:
-            issue: The parent issue to look for sub-tasks
+            issue (dict): The parent issue to look for sub-tasks
 
         Returns:
             list: A list of sub-tasks if any, None otherwise.
@@ -157,7 +157,7 @@ class JiraJuggler(object):
         Check whether a ticket is a child-task
 
         Args:
-            issue: The issue to check
+            issue (dict): The issue to check
 
         Returns:
             bool: True if the given issue is a child-task, False otherwise.
