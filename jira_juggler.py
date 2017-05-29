@@ -62,8 +62,9 @@ class JiraJuggler(object):
         Construct a JIRA juggler object
 
         Args:
-            url URL to the JIRA server
-            user Username on JIRA server
+            url (str): URL to the JIRA server
+            user (str): Username on JIRA server
+            query (str): The Query to run on JIRA server
         '''
 
         logging.info('Jira server: %s', url)
@@ -80,9 +81,10 @@ class JiraJuggler(object):
         Convert JIRA issue properties to the task juggler syntax
 
         Args:
-            issue The issue to work on
+            issue: The issue to work on
+
         Returns:
-            String representation of the issue properties in juggler syntax
+            str: String representation of the issue properties in juggler syntax
         '''
         props = ''
         if hasattr(issue.fields, 'assignee'):
@@ -109,9 +111,10 @@ class JiraJuggler(object):
         Convert JIRA issue to the task juggler syntax
 
         Args:
-            issue The issue to work on
+            issue: The issue to work on
+
         Returns:
-            String representation of the issue in juggler syntax
+            str: String representation of the issue in juggler syntax
         '''
         issue_string = ''
         children = self.get_subtasks(issue)
@@ -139,9 +142,10 @@ class JiraJuggler(object):
         Check whether a ticket is a parent-task
 
         Args:
-            issue The issue to check
+            issue: The parent issue to look for sub-tasks
+
         Returns:
-            True if the given issue is a parent-task, False otherwise.
+            list: A list of sub-tasks if any, None otherwise.
         '''
         if hasattr(issue.fields, 'subtasks'):
             return issue.fields.subtasks
@@ -153,9 +157,10 @@ class JiraJuggler(object):
         Check whether a ticket is a child-task
 
         Args:
-            issue The issue to check
+            issue: The issue to check
+
         Returns:
-            True if the given issue is a child-task, False otherwise.
+            bool: True if the given issue is a child-task, False otherwise.
         '''
         return hasattr(issue.fields, 'parent') and issue.fields.parent
 
@@ -164,7 +169,7 @@ class JiraJuggler(object):
         Query JIRA and generate task-juggler output from given issues
 
         Args:
-            output Name of output file, for task-juggler
+            output (str): Name of output file, for task-juggler
         '''
         with open(output, 'w') as out:
             busy = True
