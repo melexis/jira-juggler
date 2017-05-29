@@ -25,6 +25,7 @@ $(TASK_FILE): $(SCRIPT)
 .PHONY: clean
 clean:
 	$(RM) $(TASK_FILE) $(FULL_FILE)
+	$(RM) *.html css icons scripts
 
 .PHONY: lint
 lint:
