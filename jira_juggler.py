@@ -9,7 +9,7 @@ This script queries Jira, and generates a task-juggler input file in order to ge
 from getpass import getpass
 import argparse
 import logging
-from jira import JIRA
+from jira import JIRA, JIRAError
 
 DEFAULT_LOGLEVEL = 'warning'
 DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'
@@ -271,8 +271,8 @@ class JiraJuggler(object):
         while busy:
             try:
                 issues = self.jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count)
-            except:
-                logging.error('No Jira issues found for query "%s", is this correct?', self.query)
+            except JIRAError:
+                logging.error('Invalid Jira query "%s"', self.query)
                 return None
 
             if not len(issues):
