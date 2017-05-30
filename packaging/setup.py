@@ -27,7 +27,7 @@ setup(
     platforms='any',
     packages=find_packages(),
     include_package_data=True,
-    install_requires=['jira', 'logging'],
+    install_requires=['jira'],
     namespace_packages=['swcc'],
     keywords = ['Jira', 'taskjuggler', 'gantt'],
 )
