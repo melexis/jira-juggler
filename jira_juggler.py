@@ -21,14 +21,6 @@ JIRA_PAGE_SIZE = 50
 
 TAB = ' ' * 4
 
-JUGGLER_TASK_TEMPLATE = '''
-task {id} "{key}: {description}" {{
-{props}
-}}
-'''
-
-JUGGLER_TASK_PROPERTY_TEMPLATE = TAB + '{prop} {value}\n'
-
 def set_logging_level(loglevel):
     '''
     Set the logging level
@@ -46,6 +38,8 @@ class JugglerTaskProperty(object):
 
     DEFAULT_NAME = 'property name'
     DEFAULT_VALUE = 'not initialized'
+    TEMPLATE = TAB + '{prop} {value}\n'
+
 
     def __init__(self, jira_issue=None):
         '''
@@ -118,8 +112,8 @@ class JugglerTaskProperty(object):
         '''
 
         if self.get_value():
-            return JUGGLER_TASK_PROPERTY_TEMPLATE.format(prop=self.get_name(),
-                                                     value=self.get_value())
+            return self.TEMPLATE.format(prop=self.get_name(),
+                                        value=self.get_value())
         return ''
 
 class JugglerTaskAllocate(JugglerTaskProperty):
@@ -181,7 +175,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
         if hasattr(jira_issue.fields, 'issuelinks'):
             for link in jira_issue.fields.issuelinks:
                 if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
-                    self.append_value('!'+link.inwardIssue.key.replace('-', '_'))
+                    self.append_value('!' + link.inwardIssue.key.replace('-', '_'))
 
 class JugglerTask(object):
 
@@ -189,6 +183,11 @@ class JugglerTask(object):
 
     DEFAULT_KEY = 'NOT_INITIALIZED'
     DEFAULT_SUMMARY = 'Task is not initialized'
+    TEMPLATE = '''
+task {id} "{key}: {description}" {{
+{props}
+}}
+'''
 
     def __init__(self, jira_issue=None):
         logging.info('Create JugglerTask for %s', jira_issue.key)
@@ -223,10 +222,10 @@ class JugglerTask(object):
         props = ''
         for prop in self.properties:
             props += str(prop)
-        return JUGGLER_TASK_TEMPLATE.format(id=self.key.replace('-', '_'),
-                                            key=self.key,
-                                            description=self.summary.replace('\"', '\\\"'),
-                                            props=props)
+        return self.TEMPLATE.format(id=self.key.replace('-', '_'),
+                                    key=self.key,
+                                    description=self.summary.replace('\"', '\\\"'),
+                                    props=props)
 
 class JiraJuggler(object):
 
@@ -299,7 +298,6 @@ class JiraJuggler(object):
             return
         with open(output, 'w') as out:
             for issue in issues:
-                logging.debug('%s: %s', issue.key, issue.summary)
                 out.write(str(issue))
 
 if __name__ == "__main__":
