@@ -68,6 +68,8 @@ resource other "Others" {
     }
     resource elo "Eugene" {
     }
+    resource fae "Fabien" {
+    }
 }
 
 task deliveries "Milestones" {
