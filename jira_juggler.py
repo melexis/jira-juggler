@@ -19,27 +19,15 @@ DEFAULT_OUTPUT = 'jira_export.tjp'
 
 JIRA_PAGE_SIZE = 50
 
-TASKJUGGLER_PROPERTY_TRANSLATION = {
-    'allocate': 'assignee',
-    'effort': 'aggregatetimeoriginalestimate',
-}
+TAB = ' ' * 4
 
 JUGGLER_TASK_TEMPLATE = '''
-{tabulator}task {id} "{key}: {description}" {{
+task {id} "{key}: {description}" {{
 {props}
-{tabulator}}}
+}}
 '''
 
-JUGGLER_PARENT_TASK_TEMPLATE_START = '''
-{tabulator}task {id} "{key}: {description}" {{
-'''
-JUGGLER_PARENT_TASK_TEMPLATE_END = '''
-{tabulator}}}
-'''
-
-JUGGLER_TASK_PROPERTY_TEMPLATE = '{tabulator}{prop} {value}\n'
-
-TAB = '\t'
+JUGGLER_TASK_PROPERTY_TEMPLATE = TAB + '{prop} {value}\n'
 
 def set_logging_level(loglevel):
     '''
@@ -52,6 +40,184 @@ def set_logging_level(loglevel):
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % loglevel)
     logging.basicConfig(level=numeric_level)
+
+class JugglerTaskProperty(object):
+    '''Class for a property of a Task Juggler'''
+
+    DEFAULT_NAME = 'property name'
+    DEFAULT_VALUE = 'not initialized'
+
+    def __init__(self, jira_issue=None):
+        '''
+        Initialize task juggler property
+
+        Args:
+            jira_issue (class): The Jira issue to load from
+            value (object): Value of the property
+        '''
+        self.name = self.DEFAULT_NAME
+        self.value = self.DEFAULT_VALUE
+
+        if jira_issue:
+            self.load_from_jira_issue(jira_issue)
+
+    def load_from_jira_issue(self, jira_issue):
+        '''
+        Load the object with data from a Jira issue
+
+        Args:
+            jira_issue (class): The Jira issue to load from
+        '''
+        pass
+
+    def get_name(self):
+        '''
+        Get name for task juggler property
+
+        Returns:
+            str: Name of the task juggler property
+        '''
+        return self.name
+
+    def set_value(self, value):
+        '''
+        Set value for task juggler property
+
+        Args:
+            value (object): New value of the property
+        '''
+        self.value = value
+
+    def append_value(self, value):
+        '''
+        Append value for task juggler property
+
+        Args:
+            value (object): Value to append to the property
+        '''
+        if self.get_value():
+            self.set_value(self.get_value() + ', ' + value)
+        else:
+            self.set_value(value)
+
+    def get_value(self):
+        '''
+        Get value for task juggler property
+
+        Returns:
+            str: Value of the task juggler property
+        '''
+        return self.value
+
+    def __str__(self):
+        '''
+        Convert task property object to the task juggler syntax
+
+        Returns:
+            str: String representation of the task property in juggler syntax
+        '''
+
+        if self.get_value():
+            return JUGGLER_TASK_PROPERTY_TEMPLATE.format(prop=self.get_name(),
+                                                     value=self.get_value())
+        return ''
+
+class JugglerTaskAllocate(JugglerTaskProperty):
+    '''Class for the allocate (assignee) of a juggler task'''
+
+    DEFAULT_NAME = 'allocate'
+    DEFAULT_VALUE = 'not assigned'
+
+    def load_from_jira_issue(self, jira_issue):
+        '''
+        Load the object with data from a Jira issue
+
+        Args:
+            jira_issue (class): The Jira issue to load from
+        '''
+        if hasattr(jira_issue.fields, 'assignee'):
+            self.set_value(jira_issue.fields.assignee.name)
+
+class JugglerTaskEffort(JugglerTaskProperty):
+    '''Class for the effort (estimate) of a juggler task'''
+
+    DEFAULT_NAME = 'effort'
+    DEFAULT_VALUE = '1h'
+
+    def load_from_jira_issue(self, jira_issue):
+        '''
+        Load the object with data from a Jira issue
+
+        Args:
+            jira_issue (class): The Jira issue to load from
+        '''
+        if hasattr(jira_issue.fields, 'aggregatetimeoriginalestimate') and jira_issue.fields.aggregatetimeoriginalestimate:
+            self.set_value(str(jira_issue.fields.aggregatetimeoriginalestimate/(8.0*60*60))+'d')
+        else:
+            logging.warning('No estimate found for %s, assuming %s', jira_issue.key, self.DEFAULT_VALUE)
+
+class JugglerTaskDepends(JugglerTaskProperty):
+    '''Class for the effort (estimate) of a juggler task'''
+
+    DEFAULT_NAME = 'depends'
+    DEFAULT_VALUE = None
+
+    def load_from_jira_issue(self, jira_issue):
+        '''
+        Load the object with data from a Jira issue
+
+        Args:
+            jira_issue (class): The Jira issue to load from
+        '''
+        if hasattr(jira_issue.fields, 'issuelinks'):
+            for link in jira_issue.fields.issuelinks:
+                if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
+                    self.append_value('!'+link.inwardIssue.key.replace('-', '_'))
+
+class JugglerTask(object):
+
+    '''Class for a task for Task-Juggler'''
+
+    DEFAULT_KEY = 'NOT_INITIALIZED'
+    DEFAULT_SUMMARY = 'Task is not initialized'
+
+    def __init__(self, jira_issue=None):
+        logging.info('Create JugglerTask for %s', jira_issue.key)
+
+        self.key = self.DEFAULT_KEY
+        self.summary = self.DEFAULT_SUMMARY
+        self.properties = []
+
+        if jira_issue:
+            self.load_from_jira_issue(jira_issue)
+
+    def load_from_jira_issue(self, jira_issue):
+        '''
+        Load the object with data from a Jira issue
+
+        Args:
+            jira_issue (class): The Jira issue to load from
+        '''
+        self.key = jira_issue.key
+        self.summary = jira_issue.fields.summary.replace('\"', '\\\"')
+        self.properties.append(JugglerTaskAllocate(jira_issue))
+        self.properties.append(JugglerTaskEffort(jira_issue))
+        self.properties.append(JugglerTaskDepends(jira_issue))
+
+    def __str__(self):
+        '''
+        Convert task object to the task juggler syntax
+
+        Returns:
+            str: String representation of the task in juggler syntax
+        '''
+        props = ''
+        for prop in self.properties:
+            props += str(prop)
+        return JUGGLER_TASK_TEMPLATE.format(id=self.key.replace('-', '_'),
+                                            key=self.key,
+                                            description=self.summary.replace('\"', '\\\"'),
+                                            props=props)
 
 class JiraJuggler(object):
 
@@ -68,126 +234,64 @@ class JiraJuggler(object):
         '''
 
         logging.info('Jira server: %s', url)
-        logging.info('Query: %s', query)
 
         password = getpass('Enter JIRA password for {user}: '.format(user=user))
-        self.query = query
         self.jirahandle = JIRA(url, basic_auth=(user, password))
+        self.set_query(query)
+
+    def set_query(self, query):
+        '''
+        Set the query for the JIRA juggler object
+
+        Args:
+            query (str): The Query to run on JIRA server
+        '''
+
+        logging.info('Query: %s', query)
+        self.query = query
         self.issue_count = 0
 
-    @staticmethod
-    def get_issue_properties(issue, tabulator=''):
+    def load_issues_from_jira(self):
         '''
-        Convert JIRA issue properties to the task juggler syntax
-
-        Args:
-            issue (dict): The issue to work on
+        Load issues from Jira
 
         Returns:
-            str: String representation of the issue properties in juggler syntax
+            list: A list of dicts containing the Jira tickets
         '''
-        props = ''
-        if hasattr(issue.fields, 'assignee'):
-            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator,
-                                                           prop='allocate',
-                                                           value=issue.fields.assignee.name)
-        if hasattr(issue.fields, 'aggregatetimeoriginalestimate') and issue.fields.aggregatetimeoriginalestimate:
-            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator,
-                                                           prop='effort',
-                                                           value=str(issue.fields.aggregatetimeoriginalestimate/(8.0*60*60))+'d')
-        else:
-            logging.warning('No estimate found for %s, assuming 1 day', issue.key)
-            props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator, prop='effort', value='1d')
-        if hasattr(issue.fields, 'issuelinks'):
-            for link in issue.fields.issuelinks:
-                if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
-                    props += JUGGLER_TASK_PROPERTY_TEMPLATE.format(tabulator=tabulator,
-                                                                   prop='depends',
-                                                                   value='!'+link.inwardIssue.key.replace('-', '_'))
-        return props
+        tasks = []
+        busy = True
+        while busy:
+            try:
+                issues = self.jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count)
+            except:
+                logging.error('No Jira issues found for query "%s", is this correct?', self.query)
+                return None
 
-    def get_issue_string(self, issue, tabulator=''):
-        '''
-        Convert JIRA issue to the task juggler syntax
+            if not len(issues):
+                busy = False
 
-        Args:
-            issue (dict): The issue to work on
+            self.issue_count += len(issues)
 
-        Returns:
-            str: String representation of the issue in juggler syntax
-        '''
-        issue_string = ''
-        children = self.get_subtasks(issue)
-        if children:
-            issue_string += JUGGLER_PARENT_TASK_TEMPLATE_START.format(tabulator=tabulator,
-                                                                      id=issue.key.replace('-', '_'),
-                                                                      key=issue.key,
-                                                                      description=issue.fields.summary.replace('\"', '\\\"'))
-            for child in children:
-                child_issue = self.jirahandle.issue(child.key)
-                issue_string += self.get_issue_string(child_issue, tabulator=tabulator+TAB)
-            issue_string += JUGGLER_PARENT_TASK_TEMPLATE_END.format(tabulator=tabulator)
+            for issue in issues:
+                logging.debug('Retrieved %s: %s', issue.key, issue.fields.summary)
+                tasks.append(JugglerTask(issue))
 
-        elif not self.is_child(issue) or tabulator == TAB:
-            issue_string += JUGGLER_TASK_TEMPLATE.format(tabulator=tabulator,
-                                                         id=issue.key.replace('-', '_'),
-                                                         key=issue.key,
-                                                         description=issue.fields.summary.replace('\"', '\\\"'),
-                                                         props=self.get_issue_properties(issue, tabulator=tabulator+TAB))
-        return issue_string
+        return tasks
 
-    @staticmethod
-    def get_subtasks(issue):
-        '''
-        Check whether a ticket is a parent-task
-
-        Args:
-            issue (dict): The parent issue to look for sub-tasks
-
-        Returns:
-            list: A list of sub-tasks if any, None otherwise.
-        '''
-        if hasattr(issue.fields, 'subtasks'):
-            return issue.fields.subtasks
-        return None
-
-    @staticmethod
-    def is_child(issue):
-        '''
-        Check whether a ticket is a child-task
-
-        Args:
-            issue (dict): The issue to check
-
-        Returns:
-            bool: True if the given issue is a child-task, False otherwise.
-        '''
-        return hasattr(issue.fields, 'parent') and issue.fields.parent
-
-    def generate(self, output):
+    def juggle(self, output):
         '''
         Query JIRA and generate task-juggler output from given issues
 
         Args:
             output (str): Name of output file, for task-juggler
         '''
+        issues = self.load_issues_from_jira()
+        if not issues:
+            return
         with open(output, 'w') as out:
-            busy = True
-            while busy:
-                try:
-                    issues = self.jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count)
-                except:
-                    logging.error('No Jira issues found for query "%s", is this correct?', self.query)
-                    busy = False
-
-                if not len(issues):
-                    busy = False
-
-                self.issue_count += len(issues)
-
-                for issue in issues:
-                    logging.debug('%s: %s', issue.key, issue.fields.summary)
-                    out.write(self.get_issue_string(issue))
+            for issue in issues:
+                logging.debug('%s: %s', issue.key, issue.summary)
+                out.write(str(issue))
 
 if __name__ == "__main__":
     ARGPARSER = argparse.ArgumentParser()
@@ -212,5 +316,5 @@ if __name__ == "__main__":
 
     JUGGLER = JiraJuggler(ARGS.url, ARGS.username, ARGS.query)
 
-    JUGGLER.generate(ARGS.output)
+    JUGGLER.juggle(ARGS.output)
 
