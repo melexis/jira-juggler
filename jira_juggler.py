@@ -141,8 +141,13 @@ class JugglerTaskAllocate(JugglerTaskProperty):
 class JugglerTaskEffort(JugglerTaskProperty):
     '''Class for the effort (estimate) of a juggler task'''
 
+    #For converting the seconds (Jira) to days
+    UNIT = 'd'
+    FACTOR = 8.0 * 60 * 60
+
     DEFAULT_NAME = 'effort'
-    DEFAULT_VALUE = '1h'
+    MINIMAL_SECONDS = 60 * 60
+    DEFAULT_VALUE = str(MINIMAL_SECONDS / FACTOR) + UNIT
 
     def load_from_jira_issue(self, jira_issue):
         '''
@@ -152,7 +157,11 @@ class JugglerTaskEffort(JugglerTaskProperty):
             jira_issue (class): The Jira issue to load from
         '''
         if hasattr(jira_issue.fields, 'aggregatetimeoriginalestimate') and jira_issue.fields.aggregatetimeoriginalestimate:
-            self.set_value(str(jira_issue.fields.aggregatetimeoriginalestimate/(8.0*60*60))+'d')
+            val = jira_issue.fields.aggregatetimeoriginalestimate
+            if val >= self.MINIMAL_SECONDS:
+                self.set_value(str(val / self.FACTOR) + self.UNIT)
+            else:
+                logging.warning('Estimate %ds too low for %s, assuming %s', val, jira_issue.key, self.DEFAULT_VALUE)
         else:
             logging.warning('No estimate found for %s, assuming %s', jira_issue.key, self.DEFAULT_VALUE)
 
