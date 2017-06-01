@@ -318,7 +318,7 @@ task {id} "{key}: {description}" {{
         '''
         props = ''
         for prop in self.properties:
-            props += str(prop)
+            props += str(self.properties[prop])
         return self.TEMPLATE.format(id=to_identifier(self.key),
                                     key=self.key,
                                     description=self.summary.replace('\"', '\\\"'),
@@ -328,19 +328,20 @@ class JiraJuggler(object):
 
     '''Class for task-juggling Jira results'''
 
-    def __init__(self, url, user, password, query):
+    def __init__(self, url, user, passwd, query):
         '''
         Construct a JIRA juggler object
 
         Args:
             url (str): URL to the JIRA server
             user (str): Username on JIRA server
+            passwd (str): Password of username on JIRA server
             query (str): The Query to run on JIRA server
         '''
 
         logging.info('Jira server: %s', url)
 
-        self.jirahandle = JIRA(url, basic_auth=(user, password))
+        self.jirahandle = JIRA(url, basic_auth=(user, passwd))
         self.set_query(query)
 
     def set_query(self, query):
@@ -432,9 +433,9 @@ if __name__ == "__main__":
 
     set_logging_level(ARGS.loglevel)
 
-    password = getpass('Enter JIRA password for {user}: '.format(user=ARGS.username))
+    PASSWORD = getpass('Enter JIRA password for {user}: '.format(user=ARGS.username))
 
-    JUGGLER = JiraJuggler(ARGS.url, ARGS.username, password, ARGS.query)
+    JUGGLER = JiraJuggler(ARGS.url, ARGS.username, PASSWORD, ARGS.query)
 
     JUGGLER.juggle(ARGS.output)
 
