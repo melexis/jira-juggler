@@ -9,14 +9,7 @@ This script queries Jira, and generates a task-juggler input file in order to ge
 from getpass import getpass
 import argparse
 import logging
-try:
-    from jira import JIRA, JIRAError
-except ImportError as err:
-    print("jira import failed")
-    import pip
-    pip.main(['install', 'jira'])
-    from jira import JIRA, JIRAError
-
+from jira import JIRA, JIRAError
 
 DEFAULT_LOGLEVEL = 'warning'
 DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'

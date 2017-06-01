@@ -17,7 +17,14 @@ except ImportError as err:
         pip.main(['install', 'mock'])
         from mock import MagicMock, patch
 
-from jira import JIRA, JIRAError
+try:
+    from jira import JIRA, JIRAError
+except ImportError as err:
+    print("jira import failed")
+    import pip
+    pip.main(['install', 'jira'])
+    from jira import JIRA, JIRAError
+
 from jira_juggler import jira_juggler
 
 class TestJiraJuggler(unittest.TestCase):
