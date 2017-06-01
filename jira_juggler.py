@@ -395,7 +395,7 @@ class JiraJuggler(object):
 
         return tasks
 
-    def juggle(self, output):
+    def juggle(self, output=None):
         '''
         Query JIRA and generate task-juggler output from given issues
 
