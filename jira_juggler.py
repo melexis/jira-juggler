@@ -328,7 +328,7 @@ class JiraJuggler(object):
 
     '''Class for task-juggling Jira results'''
 
-    def __init__(self, url, user, query):
+    def __init__(self, url, user, password, query):
         '''
         Construct a JIRA juggler object
 
@@ -340,7 +340,6 @@ class JiraJuggler(object):
 
         logging.info('Jira server: %s', url)
 
-        password = getpass('Enter JIRA password for {user}: '.format(user=user))
         self.jirahandle = JIRA(url, basic_auth=(user, password))
         self.set_query(query)
 
@@ -431,7 +430,9 @@ if __name__ == "__main__":
 
     set_logging_level(ARGS.loglevel)
 
-    JUGGLER = JiraJuggler(ARGS.url, ARGS.username, ARGS.query)
+    password = getpass('Enter JIRA password for {user}: '.format(user=ARGS.username))
+
+    JUGGLER = JiraJuggler(ARGS.url, ARGS.username, password, ARGS.query)
 
     JUGGLER.juggle(ARGS.output)
 
