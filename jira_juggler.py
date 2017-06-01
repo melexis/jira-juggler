@@ -277,7 +277,7 @@ task {id} "{key}: {description}" {{
 
         self.key = self.DEFAULT_KEY
         self.summary = self.DEFAULT_SUMMARY
-        self.properties = []
+        self.properties = {}
 
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
@@ -291,9 +291,9 @@ task {id} "{key}: {description}" {{
         '''
         self.key = jira_issue.key
         self.summary = jira_issue.fields.summary.replace('\"', '\\\"')
-        self.properties.append(JugglerTaskAllocate(jira_issue))
-        self.properties.append(JugglerTaskEffort(jira_issue))
-        self.properties.append(JugglerTaskDepends(jira_issue))
+        self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
+        self.properties['effort'] = JugglerTaskEffort(jira_issue)
+        self.properties['depends'] = JugglerTaskDepends(jira_issue)
 
     def validate(self, tasks):
         '''
@@ -307,7 +307,7 @@ task {id} "{key}: {description}" {{
             logging.error('Found a task which is not initialized')
 
         for prop in self.properties:
-            prop.validate(self, tasks)
+            self.properties[prop].validate(self, tasks)
 
     def __str__(self):
         '''
@@ -404,10 +404,12 @@ class JiraJuggler(object):
         '''
         issues = self.load_issues_from_jira()
         if not issues:
-            return
-        with open(output, 'w') as out:
-            for issue in issues:
-                out.write(str(issue))
+            return None
+        if output:
+            with open(output, 'w') as out:
+                for issue in issues:
+                    out.write(str(issue))
+        return issues
 
 if __name__ == "__main__":
     ARGPARSER = argparse.ArgumentParser()
