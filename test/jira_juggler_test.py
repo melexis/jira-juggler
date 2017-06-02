@@ -31,7 +31,13 @@ except ImportError as err:
 from jira_juggler import jira_juggler as dut
 
 class TestJiraJuggler(unittest.TestCase):
-    '''Testing JiraJuggler interface'''
+    '''
+    Testing JiraJuggler interface
+
+    todo:
+        - Currently we only test the parsing part (parsing JIRA outcome), and assert the content of the internal
+          data structures. We need to extend to test the outcoming text (file) which can be given to TaskJuggler.
+    '''
 
     URL = 'http://my-non-existing-jira.melexis.com'
     USER = 'justme'
