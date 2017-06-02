@@ -383,7 +383,7 @@ class JiraJuggler(object):
                 logging.error('Invalid Jira query "%s"', self.query)
                 return None
 
-            if not len(issues):
+            if len(issues) <= 0:
                 busy = False
 
             self.issue_count += len(issues)
@@ -438,4 +438,3 @@ if __name__ == "__main__":
     JUGGLER = JiraJuggler(ARGS.url, ARGS.username, PASSWORD, ARGS.query)
 
     JUGGLER.juggle(ARGS.output)
-
