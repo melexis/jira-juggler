@@ -49,17 +49,25 @@ class TestJiraJuggler(unittest.TestCase):
     SUMMARY2 = 'Some random description of issue 2'
     ASSIGNEE2 = 'Jane Doe'
     ESTIMATE2 = 1.2 * SECS_PER_DAY
-    DEPENDS2 = KEY1
+    DEPENDS2 = [KEY1]
 
-    JIRA_JSON_ISSUE_TEMPLATE = '''{{
-        "key": "{key}",
-        "fields": {{
-            "summary": "{summary}",
+    JIRA_JSON_ASSIGNEE_TEMPLATE = '''
             "assignee": {{
                 "name": "{assignee}"
-            }},
-            "aggregatetimeoriginalestimate": {estimate},
+            }}
+    '''
+
+    JIRA_JSON_ESTIMATE_TEMPLATE = '''
+            "aggregatetimeoriginalestimate": {estimate}
+    '''
+
+    JIRA_JSON_LINKS_TEMPLATE = '''
             "issuelinks": [
+                {links}
+            ]
+    '''
+
+    JIRA_JSON_DEPENDS_TEMPLATE = '''
                 {{
                     "inwardIssue": {{
                         "key": "{depends}"
@@ -68,7 +76,13 @@ class TestJiraJuggler(unittest.TestCase):
                         "name": "Blocker"
                     }}
                 }}
-            ]
+    '''
+
+    JIRA_JSON_ISSUE_TEMPLATE = '''{{
+        "key": "{key}",
+        "fields": {{
+            "summary": "{summary}"
+            {properties}
         }}
     }}'''
 
@@ -121,10 +135,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.QUERY, juggler.query)
 
         jira_mock_object.search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             None,
-                                                                             self.ESTIMATE1, #TODO: None here
-                                                                             None),
+                                                                             self.SUMMARY1)
                                                        ], []]
         issues = juggler.juggle()
         jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
@@ -166,7 +177,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY2, issues[1].summary)
         self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].get_value())
         self.assertEqual(self.ESTIMATE2/self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
-        self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value()[0])
+        self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value())
 
     def _mock_jira_issue(self, key, summary, assignee=None, estimate=None, depends=None):
         '''
@@ -182,11 +193,26 @@ class TestJiraJuggler(unittest.TestCase):
         Returns:
             object: Mocked Jira Issue object
         '''
+        props = ''
+        if assignee:
+            props += ', '
+            props += self.JIRA_JSON_ASSIGNEE_TEMPLATE.format(assignee=assignee)
+        if estimate:
+            props += ', '
+            props += self.JIRA_JSON_ESTIMATE_TEMPLATE.format(estimate=estimate)
+        if depends:
+            props += ', '
+            deps = ''
+            for dep in depends:
+                if deps:
+                    deps += ', '
+                deps += self.JIRA_JSON_DEPENDS_TEMPLATE.format(depends=dep)
+            props += self.JIRA_JSON_LINKS_TEMPLATE.format(links=deps)
+
         data = self.JIRA_JSON_ISSUE_TEMPLATE.format(key=key,
                                                     summary=summary,
-                                                    assignee=assignee,
-                                                    estimate=estimate,
-                                                    depends=depends)
+                                                    properties=props)
+        #print(data)
         return json.loads(data, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
 
 if __name__ == '__main__':
