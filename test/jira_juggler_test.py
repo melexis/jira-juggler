@@ -175,6 +175,26 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(dut.JugglerTaskEffort.MINIMAL_VALUE, issues[0].properties['effort'].get_value())
 
     @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    def test_broken_depends(self, jira_mock):
+        '''Test for removing a broken link to a dependant task'''
+        jira_mock_object = MagicMock(spec=JIRA)
+        jira_mock.return_value = jira_mock_object
+        juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
+        self.assertEqual(self.QUERY, juggler.query)
+
+        jira_mock_object.search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
+                                                                             self.SUMMARY1,
+                                                                             depends=['non-existing-key-of-issue'])
+                                                       ], []]
+        issues = juggler.juggle()
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1)])
+        self.assertEqual(1, len(issues))
+        self.assertEqual(self.KEY1, issues[0].key)
+        self.assertEqual(self.SUMMARY1, issues[0].summary)
+        self.assertEqual([], issues[0].properties['depends'].get_value())
+
+    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_task_depends(self, jira_mock):
         '''Test for dual happy flow: one task depends on the other'''
         jira_mock_object = MagicMock(spec=JIRA)
