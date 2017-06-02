@@ -43,13 +43,19 @@ class TestJiraJuggler(unittest.TestCase):
     SUMMARY1 = 'Some random description of issue 1'
     ASSIGNEE1 = 'John Doe'
     ESTIMATE1 = 0.3 * SECS_PER_DAY
-    DEPENDS1 = None
+    DEPENDS1 = []
 
     KEY2 = 'Issue2'
     SUMMARY2 = 'Some random description of issue 2'
     ASSIGNEE2 = 'Jane Doe'
     ESTIMATE2 = 1.2 * SECS_PER_DAY
     DEPENDS2 = [KEY1]
+
+    KEY3 = 'Issue3'
+    SUMMARY3 = 'Some random description of issue 3'
+    ASSIGNEE3 = 'Cooky Doe'
+    ESTIMATE3 = 1.0 * SECS_PER_DAY
+    DEPENDS3 = [KEY1, KEY2]
 
     JIRA_JSON_ASSIGNEE_TEMPLATE = '''
             "assignee": {{
@@ -124,7 +130,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
         self.assertEqual(self.ESTIMATE1/self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
-        self.assertEqual([], issues[0].properties['depends'].get_value())
+        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
 
     @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_single_task_minimal(self, jira_mock):
@@ -172,14 +178,59 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
         self.assertEqual(self.ESTIMATE1/self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
-        self.assertEqual([], issues[0].properties['depends'].get_value())
+        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
         self.assertEqual(self.KEY2, issues[1].key)
         self.assertEqual(self.SUMMARY2, issues[1].summary)
         self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].get_value())
         self.assertEqual(self.ESTIMATE2/self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value())
 
-    def _mock_jira_issue(self, key, summary, assignee=None, estimate=None, depends=None):
+    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    def test_task_double_depends(self, jira_mock):
+        '''Test for extended happy flow: one task depends on two others'''
+        jira_mock_object = MagicMock(spec=JIRA)
+        jira_mock.return_value = jira_mock_object
+        juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
+        self.assertEqual(self.QUERY, juggler.query)
+
+        jira_mock_object.search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
+                                                                             self.SUMMARY1,
+                                                                             self.ASSIGNEE1,
+                                                                             self.ESTIMATE1,
+                                                                             self.DEPENDS1),
+                                                       self._mock_jira_issue(self.KEY2,
+                                                                             self.SUMMARY2,
+                                                                             self.ASSIGNEE2,
+                                                                             self.ESTIMATE2,
+                                                                             self.DEPENDS2),
+                                                       self._mock_jira_issue(self.KEY3,
+                                                                             self.SUMMARY3,
+                                                                             self.ASSIGNEE3,
+                                                                             self.ESTIMATE3,
+                                                                             self.DEPENDS3),
+                                                       ], []]
+        issues = juggler.juggle()
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=3)])
+        self.assertEqual(3, len(issues))
+        self.assertEqual(self.KEY1, issues[0].key)
+        self.assertEqual(self.SUMMARY1, issues[0].summary)
+        self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
+        self.assertEqual(self.ESTIMATE1/self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
+        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
+        self.assertEqual(self.KEY2, issues[1].key)
+        self.assertEqual(self.SUMMARY2, issues[1].summary)
+        self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].get_value())
+        self.assertEqual(self.ESTIMATE2/self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
+        self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value())
+        self.assertEqual(self.KEY3, issues[2].key)
+        self.assertEqual(self.SUMMARY3, issues[2].summary)
+        self.assertEqual(self.ASSIGNEE3, issues[2].properties['allocate'].get_value())
+        self.assertEqual(self.ESTIMATE3/self.SECS_PER_DAY, issues[2].properties['effort'].get_value())
+        self.assertEqual(self.DEPENDS3, issues[2].properties['depends'].get_value())
+
+
+    def _mock_jira_issue(self, key, summary, assignee=None, estimate=None, depends=[]):
         '''
         Helper function to create a mocked Jira issue
 
@@ -188,7 +239,7 @@ class TestJiraJuggler(unittest.TestCase):
             summary (str): Summary of the mocked Jira issue
             assignee (str): Name of the assignee of the mocked Jira issue
             estimate (float): Number of estimated seconds of the mocked Jira issue
-            depends (float): Key of the issue on which the mocked Jira issue depends (blocked by relation)
+            depends (list): List of keys (str) of the issue on which the mocked Jira issue depends (blocked by relation)
 
         Returns:
             object: Mocked Jira Issue object
