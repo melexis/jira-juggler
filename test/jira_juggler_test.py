@@ -134,7 +134,10 @@ class TestJiraJuggler(unittest.TestCase):
 
     @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_single_task_minimal(self, jira_mock):
-        '''Test for minimal happy flow: single task with minimal content is returned by Jira'''
+        '''Test for minimal happy flow: single task with minimal content is returned by Jira
+
+        Note: the default effort is choosen.
+        '''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
@@ -149,7 +152,27 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
+        self.assertEqual(dut.JugglerTaskEffort.DEFAULT_VALUE, issues[0].properties['effort'].get_value())
 
+    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    def test_estimate_too_low(self, jira_mock):
+        '''Test for correcting an estimate which is too low'''
+        jira_mock_object = MagicMock(spec=JIRA)
+        jira_mock.return_value = jira_mock_object
+        juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
+        self.assertEqual(self.QUERY, juggler.query)
+
+        jira_mock_object.search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
+                                                                             self.SUMMARY1,
+                                                                             estimate=1)
+                                                       ], []]
+        issues = juggler.juggle()
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1)])
+        self.assertEqual(1, len(issues))
+        self.assertEqual(self.KEY1, issues[0].key)
+        self.assertEqual(self.SUMMARY1, issues[0].summary)
+        self.assertEqual(dut.JugglerTaskEffort.MINIMAL_VALUE, issues[0].properties['effort'].get_value())
 
     @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_task_depends(self, jira_mock):
