@@ -7,4 +7,5 @@ JIRA to TaskJuggler convertor
 
 Tool for converting a set of JIRA tasks to TaskJuggler (TJ3) syntax.
 
-.. todo:: More details soon
+todo: More details soon
+
