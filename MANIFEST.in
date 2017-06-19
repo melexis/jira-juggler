@@ -2,7 +2,6 @@ graft docs
 graft src
 graft tests
 
-# Include the readme file
 include README.rst
 include LICENSE
 
@@ -10,8 +9,4 @@ include tox.ini .travis.yml
 
 global-exclude *.py[cod] __pycache__ *.so *.dylib
 
-# added by check_manifest.py
 include NOTICE
-
-# added by check_manifest.py
-recursive-include ci *.py
