@@ -47,5 +47,12 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
-    keywords = ['Jira', 'taskjuggler', 'gantt'],
+    keywords = [
+        'Jira',
+        'taskjuggler',
+        'gantt'
+        'project planning',
+        'planning',
+        'software engineering',
+    ],
 )
