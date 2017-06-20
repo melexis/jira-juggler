@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# python -m unittest discover -s scripts/ -p '*_test.py'
-
 import json
 from collections import namedtuple
 
@@ -20,6 +18,8 @@ except ImportError as err:
         pip.main(['install', 'mock'])
         from mock import MagicMock, patch, call
 
+import mlx.jira_juggler as dut
+
 try:
     from jira import JIRA, JIRAError
 except ImportError as err:
@@ -28,7 +28,6 @@ except ImportError as err:
     pip.main(['install', 'jira'])
     from jira import JIRA, JIRAError
 
-from jira_juggler import jira_juggler as dut
 
 class TestJiraJuggler(unittest.TestCase):
     '''
@@ -101,7 +100,7 @@ class TestJiraJuggler(unittest.TestCase):
     def SetUp(self):
         '''SetUp is run before each test to provide clean working environment'''
 
-    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_empty_query_result(self, jira_mock):
         '''Test for Jira not returning any task on the given query'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -114,7 +113,7 @@ class TestJiraJuggler(unittest.TestCase):
         jira_mock_object.search_issues.assert_called_once_with(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0)
 
 
-    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_single_task_happy(self, jira_mock):
         '''Test for simple happy flow: single task is returned by Jira'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -138,7 +137,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE1/self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
 
-    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_single_task_minimal(self, jira_mock):
         '''Test for minimal happy flow: single task with minimal content is returned by Jira
 
@@ -160,7 +159,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(dut.JugglerTaskEffort.DEFAULT_VALUE, issues[0].properties['effort'].get_value())
 
-    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_estimate_too_low(self, jira_mock):
         '''Test for correcting an estimate which is too low'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -180,7 +179,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(dut.JugglerTaskEffort.MINIMAL_VALUE, issues[0].properties['effort'].get_value())
 
-    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_broken_depends(self, jira_mock):
         '''Test for removing a broken link to a dependant task'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -200,7 +199,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual([], issues[0].properties['depends'].get_value())
 
-    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_task_depends(self, jira_mock):
         '''Test for dual happy flow: one task depends on the other'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -234,7 +233,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE2/self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value())
 
-    @patch('jira_juggler.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_task_double_depends(self, jira_mock):
         '''Test for extended happy flow: one task depends on two others'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -314,6 +313,3 @@ class TestJiraJuggler(unittest.TestCase):
                                                     properties=props)
         #print(data)
         return json.loads(data, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
-
-if __name__ == '__main__':
-    unittest.main()
