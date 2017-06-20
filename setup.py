@@ -51,7 +51,7 @@ setup(
     keywords = [
         'Jira',
         'taskjuggler',
-        'gantt'
+        'gantt',
         'project planning',
         'planning',
         'software engineering',

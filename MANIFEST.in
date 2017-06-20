@@ -10,3 +10,7 @@ include tox.ini .travis.yml
 global-exclude *.py[cod] __pycache__ *.so *.dylib
 
 include NOTICE
+
+# added by check_manifest.py
+include *.tjp
+include Makefile
