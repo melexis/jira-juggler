@@ -24,6 +24,7 @@ setup(
     description='A python script for extracting data from Jira, and converting to task-juggler (tj3) output',
     long_description=open("README.rst").read(),
     zip_safe=False,
+    license='Apache License, Version 2.0',
     platforms='any',
     packages=find_packages('src'),
     package_dir={'': 'src'},
@@ -35,7 +36,7 @@ setup(
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: Apache2 License',
+        'License :: OSI Approved :: Apache Software License',
         'Operating System :: Unix',
         'Operating System :: POSIX',
         'Operating System :: Microsoft :: Windows',
