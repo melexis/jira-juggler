@@ -5,7 +5,7 @@ from os.path import basename, dirname, join, splitext
 from setuptools import find_packages, setup
 
 PROJECT_URL = 'https://github.com/melexis/jira-juggler'
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 
 
 def read(*names, **kwargs):
