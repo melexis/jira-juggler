@@ -178,8 +178,8 @@ class JugglerTaskEffort(JugglerTaskProperty):
             jira_issue (class): The Jira issue to load from
         '''
         self.set_value(self.DEFAULT_VALUE)
-        if hasattr(jira_issue.fields, 'aggregatetimeoriginalestimate') and jira_issue.fields.aggregatetimeoriginalestimate:
-            val = jira_issue.fields.aggregatetimeoriginalestimate
+        if hasattr(jira_issue.fields, 'timeestimate') and jira_issue.fields.timeestimate:
+            val = jira_issue.fields.timeestimate
             self.set_value(val / self.FACTOR)
         else:
             logging.warning('No estimate found for %s, assuming %s%s', jira_issue.key, self.DEFAULT_VALUE, self.UNIT)

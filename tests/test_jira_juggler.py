@@ -69,7 +69,7 @@ class TestJiraJuggler(unittest.TestCase):
     '''
 
     JIRA_JSON_ESTIMATE_TEMPLATE = '''
-            "aggregatetimeoriginalestimate": {estimate}
+            "timeestimate": {estimate}
     '''
 
     JIRA_JSON_LINKS_TEMPLATE = '''
