@@ -7,6 +7,7 @@ from setuptools import find_packages, setup
 PROJECT_URL = 'https://github.com/melexis/jira-juggler'
 VERSION = '1.0.0'
 
+
 def read(*names, **kwargs):
     return io.open(
         join(dirname(__file__), *names),

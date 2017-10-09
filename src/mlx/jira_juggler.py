@@ -21,6 +21,7 @@ JIRA_PAGE_SIZE = 50
 
 TAB = ' ' * 4
 
+
 def set_logging_level(loglevel):
     '''
     Set the logging level
@@ -32,6 +33,7 @@ def set_logging_level(loglevel):
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % loglevel)
     logging.basicConfig(level=numeric_level)
+
 
 def to_identifier(key):
     '''
@@ -45,6 +47,7 @@ def to_identifier(key):
     '''
     return key.replace('-', '_')
 
+
 class JugglerTaskProperty(object):
     '''Class for a property of a Task Juggler'''
 
@@ -54,7 +57,6 @@ class JugglerTaskProperty(object):
     SUFFIX = ''
     TEMPLATE = TAB + '{prop} {value}\n'
     VALUE_TEMPLATE = '{prefix}{value}{suffix}'
-
 
     def __init__(self, jira_issue=None):
         '''
@@ -141,6 +143,7 @@ class JugglerTaskProperty(object):
                                                                          suffix=self.SUFFIX))
         return ''
 
+
 class JugglerTaskAllocate(JugglerTaskProperty):
     '''Class for the allocate (assignee) of a juggler task'''
 
@@ -158,10 +161,11 @@ class JugglerTaskAllocate(JugglerTaskProperty):
         if hasattr(jira_issue.fields, 'assignee'):
             self.set_value(jira_issue.fields.assignee.name)
 
+
 class JugglerTaskEffort(JugglerTaskProperty):
     '''Class for the effort (estimate) of a juggler task'''
 
-    #For converting the seconds (Jira) to days
+    # For converting the seconds (Jira) to days
     UNIT = 'd'
     FACTOR = 8.0 * 60 * 60
 
@@ -178,8 +182,8 @@ class JugglerTaskEffort(JugglerTaskProperty):
             jira_issue (class): The Jira issue to load from
         '''
         self.set_value(self.DEFAULT_VALUE)
-        if hasattr(jira_issue.fields, 'aggregatetimeoriginalestimate') and jira_issue.fields.aggregatetimeoriginalestimate:
-            val = jira_issue.fields.aggregatetimeoriginalestimate
+        if hasattr(jira_issue.fields, 'timeestimate') and jira_issue.fields.timeestimate:
+            val = jira_issue.fields.timeestimate
             self.set_value(val / self.FACTOR)
         else:
             logging.warning('No estimate found for %s, assuming %s%s', jira_issue.key, self.DEFAULT_VALUE, self.UNIT)
@@ -196,6 +200,7 @@ class JugglerTaskEffort(JugglerTaskProperty):
         if self.get_value() < self.MINIMAL_VALUE:
             logging.warning('Estimate %s%s too low for %s, assuming %s%s', self.get_value(), self.UNIT, task.key, self.MINIMAL_VALUE, self.UNIT)
             self.set_value(self.MINIMAL_VALUE)
+
 
 class JugglerTaskDepends(JugglerTaskProperty):
     '''Class for the effort (estimate) of a juggler task'''
@@ -260,6 +265,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
                                         value=valstr)
         return ''
 
+
 class JugglerTask(object):
 
     '''Class for a task for Task-Juggler'''
@@ -323,6 +329,7 @@ task {id} "{key}: {description}" {{
                                     key=self.key,
                                     description=self.summary.replace('\"', '\\\"'),
                                     props=props)
+
 
 class JiraJuggler(object):
 
@@ -411,6 +418,7 @@ class JiraJuggler(object):
                 for issue in issues:
                     out.write(str(issue))
         return issues
+
 
 if __name__ == "__main__":
     ARGPARSER = argparse.ArgumentParser()

@@ -21,12 +21,12 @@ except ImportError as err:
 import mlx.jira_juggler as dut
 
 try:
-    from jira import JIRA, JIRAError
+    from jira import JIRA
 except ImportError as err:
     print("jira import failed")
     import pip
     pip.main(['install', 'jira'])
-    from jira import JIRA, JIRAError
+    from jira import JIRA
 
 
 class TestJiraJuggler(unittest.TestCase):
@@ -69,7 +69,7 @@ class TestJiraJuggler(unittest.TestCase):
     '''
 
     JIRA_JSON_ESTIMATE_TEMPLATE = '''
-            "aggregatetimeoriginalestimate": {estimate}
+            "timeestimate": {estimate}
     '''
 
     JIRA_JSON_LINKS_TEMPLATE = '''
@@ -112,7 +112,6 @@ class TestJiraJuggler(unittest.TestCase):
         juggler.juggle()
         jira_mock_object.search_issues.assert_called_once_with(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0)
 
-
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_single_task_happy(self, jira_mock):
         '''Test for simple happy flow: single task is returned by Jira'''
@@ -134,7 +133,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE1/self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
+        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
@@ -225,12 +224,12 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE1/self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
+        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
         self.assertEqual(self.KEY2, issues[1].key)
         self.assertEqual(self.SUMMARY2, issues[1].summary)
         self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE2/self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
+        self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value())
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
@@ -264,19 +263,18 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE1/self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
+        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
         self.assertEqual(self.KEY2, issues[1].key)
         self.assertEqual(self.SUMMARY2, issues[1].summary)
         self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE2/self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
+        self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value())
         self.assertEqual(self.KEY3, issues[2].key)
         self.assertEqual(self.SUMMARY3, issues[2].summary)
         self.assertEqual(self.ASSIGNEE3, issues[2].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE3/self.SECS_PER_DAY, issues[2].properties['effort'].get_value())
+        self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].get_value())
         self.assertEqual(self.DEPENDS3, issues[2].properties['depends'].get_value())
-
 
     def _mock_jira_issue(self, key, summary, assignee=None, estimate=None, depends=[]):
         '''
@@ -311,5 +309,4 @@ class TestJiraJuggler(unittest.TestCase):
         data = self.JIRA_JSON_ISSUE_TEMPLATE.format(key=key,
                                                     summary=summary,
                                                     properties=props)
-        #print(data)
         return json.loads(data, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
