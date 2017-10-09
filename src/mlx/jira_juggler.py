@@ -280,6 +280,7 @@ class JugglerTask(object):
     '''Class for a task for Task-Juggler'''
 
     DEFAULT_KEY = 'NOT_INITIALIZED'
+    MAX_SUMMARY_LENGTH = 70
     DEFAULT_SUMMARY = 'Task is not initialized'
     TEMPLATE = '''
 task {id} "{key}: {description}" {{
@@ -305,7 +306,8 @@ task {id} "{key}: {description}" {{
             jira_issue (class): The Jira issue to load from
         '''
         self.key = jira_issue.key
-        self.summary = jira_issue.fields.summary.replace('\"', '\\\"')
+        summary = jira_issue.fields.summary.replace('\"', '\\\"')
+        self.summary = (summary[:self.MAX_SUMMARY_LENGTH] + '...') if len(summary) > self.MAX_SUMMARY_LENGTH else summary
         self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
         self.properties['effort'] = JugglerTaskEffort(jira_issue)
         self.properties['depends'] = JugglerTaskDepends(jira_issue)
