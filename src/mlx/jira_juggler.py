@@ -136,7 +136,7 @@ class JugglerTaskProperty(object):
             str: String representation of the task property in juggler syntax
         '''
 
-        if self.get_value():
+        if self.get_value() is not None:
             return self.TEMPLATE.format(prop=self.get_name(),
                                         value=self.VALUE_TEMPLATE.format(prefix=self.PREFIX,
                                                                          value=self.get_value(),
@@ -182,9 +182,12 @@ class JugglerTaskEffort(JugglerTaskProperty):
             jira_issue (class): The Jira issue to load from
         '''
         self.set_value(self.DEFAULT_VALUE)
-        if hasattr(jira_issue.fields, 'timeestimate') and jira_issue.fields.timeestimate:
-            val = jira_issue.fields.timeestimate
-            self.set_value(val / self.FACTOR)
+        if hasattr(jira_issue.fields, 'timeestimate'):
+            if jira_issue.fields.timeestimate is not None:
+                val = jira_issue.fields.timeestimate
+                self.set_value(val / self.FACTOR)
+            else:
+                self.set_value(0)
         else:
             logging.warning('No estimate found for %s, assuming %s%s', jira_issue.key, self.DEFAULT_VALUE, self.UNIT)
 
@@ -197,7 +200,11 @@ class JugglerTaskEffort(JugglerTaskProperty):
             tasks (list):       List of JugglerTask's to which the current task belongs. Will be used to
                                 verify relations to other tasks.
         '''
-        if self.get_value() < self.MINIMAL_VALUE:
+        if self.get_value() == 0:
+            logging.warning('Estimate for %s, is 0. Excluding', task.key)
+            tasks.remove(task)
+            return
+        elif self.get_value() < self.MINIMAL_VALUE:
             logging.warning('Estimate %s%s too low for %s, assuming %s%s', self.get_value(), self.UNIT, task.key, self.MINIMAL_VALUE, self.UNIT)
             self.set_value(self.MINIMAL_VALUE)
 
@@ -230,6 +237,8 @@ class JugglerTaskDepends(JugglerTaskProperty):
             for link in jira_issue.fields.issuelinks:
                 if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
                     self.append_value(to_identifier(link.inwardIssue.key))
+                if hasattr(link, 'outwardIssue') and link.type.name == 'Dependency':
+                    self.append_value(to_identifier(link.outwardIssue.key))
 
     def validate(self, task, tasks):
         '''
