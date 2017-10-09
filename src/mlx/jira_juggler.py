@@ -283,7 +283,8 @@ class JugglerTask(object):
     MAX_SUMMARY_LENGTH = 70
     DEFAULT_SUMMARY = 'Task is not initialized'
     TEMPLATE = '''
-task {id} "{key}: {description}" {{
+task {id} "{description}" {{
+Jira \"{key}\"
 {props}
 }}
 '''
