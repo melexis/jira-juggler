@@ -284,7 +284,7 @@ class JugglerTask(object):
     DEFAULT_SUMMARY = 'Task is not initialized'
     TEMPLATE = '''
 task {id} "{description}" {{
-Jira \"{key}\"
+{tab}Jira \"{key}\"
 {props}
 }}
 '''
@@ -339,6 +339,7 @@ Jira \"{key}\"
             props += str(self.properties[prop])
         return self.TEMPLATE.format(id=to_identifier(self.key),
                                     key=self.key,
+                                    tab=TAB,
                                     description=self.summary.replace('\"', '\\\"'),
                                     props=props)
 
