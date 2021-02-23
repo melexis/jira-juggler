@@ -63,7 +63,7 @@ class JugglerTaskProperty(object):
         Initialize task juggler property
 
         Args:
-            jira_issue (class): The Jira issue to load from
+            jira_issue (jira.resources.Issue): The Jira issue to load from
             value (object): Value of the property
         '''
         self.name = self.DEFAULT_NAME
@@ -77,7 +77,7 @@ class JugglerTaskProperty(object):
         Load the object with data from a Jira issue
 
         Args:
-            jira_issue (class): The Jira issue to load from
+            jira_issue (jira.resources.Issue): The Jira issue to load from
         '''
         pass
 
@@ -155,7 +155,7 @@ class JugglerTaskAllocate(JugglerTaskProperty):
         Load the object with data from a Jira issue
 
         Args:
-            jira_issue (class): The Jira issue to load from
+            jira_issue (jira.resources.Issue): The Jira issue to load from
         '''
         self.set_value(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'assignee'):
@@ -179,7 +179,7 @@ class JugglerTaskEffort(JugglerTaskProperty):
         Load the object with data from a Jira issue
 
         Args:
-            jira_issue (class): The Jira issue to load from
+            jira_issue (jira.resources.Issue): The Jira issue to load from
         '''
         self.set_value(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'timeestimate'):
@@ -230,7 +230,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
         Load the object with data from a Jira issue
 
         Args:
-            jira_issue (class): The Jira issue to load from
+            jira_issue (jira.resources.Issue): The Jira issue to load from
         '''
         self.set_value(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'issuelinks'):
@@ -304,7 +304,7 @@ task {id} "{description}" {{
         Load the object with data from a Jira issue
 
         Args:
-            jira_issue (class): The Jira issue to load from
+            jira_issue (jira.resources.Issue): The Jira issue to load from
         '''
         self.key = jira_issue.key
         summary = jira_issue.fields.summary.replace('\"', '\\\"')
