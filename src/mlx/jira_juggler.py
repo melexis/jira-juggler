@@ -435,20 +435,15 @@ class JiraJuggler(object):
 
 if __name__ == "__main__":
     ARGPARSER = argparse.ArgumentParser()
-    ARGPARSER.add_argument('-l', '--loglevel', dest='loglevel', default=DEFAULT_LOGLEVEL,
-                           action='store', required=False,
+    ARGPARSER.add_argument('-l', '--loglevel', default=DEFAULT_LOGLEVEL,
                            help='Level for logging (strings from logging python package)')
     ARGPARSER.add_argument('-j', '--jira', dest='url', default=DEFAULT_JIRA_URL,
-                           action='store', required=False,
                            help='URL to JIRA server')
-    ARGPARSER.add_argument('-u', '--username', dest='username', default=DEFAULT_JIRA_USER,
-                           action='store', required=True,
+    ARGPARSER.add_argument('-u', '--username', required=True,
                            help='Your username on JIRA server')
-    ARGPARSER.add_argument('-q', '--query', dest='query', default=DEFAULT_JIRA_QUERY,
-                           action='store', required=True,
+    ARGPARSER.add_argument('-q', '--query', default=DEFAULT_JIRA_QUERY, required=True,
                            help='Query to perform on JIRA server')
-    ARGPARSER.add_argument('-o', '--output', dest='output', default=DEFAULT_OUTPUT,
-                           action='store', required=False,
+    ARGPARSER.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
                            help='Output .tjp file for task-juggler')
     ARGS = ARGPARSER.parse_args()
 
