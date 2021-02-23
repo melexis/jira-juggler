@@ -434,23 +434,24 @@ class JiraJuggler(object):
 
 
 if __name__ == "__main__":
-    ARGPARSER = argparse.ArgumentParser()
-    ARGPARSER.add_argument('-l', '--loglevel', default=DEFAULT_LOGLEVEL,
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', '--loglevel', default=DEFAULT_LOGLEVEL,
                            help='Level for logging (strings from logging python package)')
-    ARGPARSER.add_argument('-j', '--jira', dest='url', default=DEFAULT_JIRA_URL,
+    parser.add_argument('-j', '--jira', dest='url', default=DEFAULT_JIRA_URL,
                            help='URL to JIRA server')
-    ARGPARSER.add_argument('-u', '--username', required=True,
+    parser.add_argument('-u', '--username', required=True,
                            help='Your username on JIRA server')
-    ARGPARSER.add_argument('-q', '--query', default=DEFAULT_JIRA_QUERY, required=True,
+    parser.add_argument('-q', '--query', default=DEFAULT_JIRA_QUERY, required=True,
                            help='Query to perform on JIRA server')
-    ARGPARSER.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
+    parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
                            help='Output .tjp file for task-juggler')
-    ARGS = ARGPARSER.parse_args()
 
-    set_logging_level(ARGS.loglevel)
+    args = parser.parse_args()
 
-    PASSWORD = getpass('Enter JIRA password for {user}: '.format(user=ARGS.username))
+    set_logging_level(args.loglevel)
 
-    JUGGLER = JiraJuggler(ARGS.url, ARGS.username, PASSWORD, ARGS.query)
+    PASSWORD = getpass('Enter JIRA password for {user}: '.format(user=args.username))
 
-    JUGGLER.juggle(ARGS.output)
+    JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query)
+
+    JUGGLER.juggle(args.output)
