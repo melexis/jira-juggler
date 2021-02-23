@@ -334,9 +334,7 @@ task {id} "{description}" {{
         Returns:
             str: String representation of the task in juggler syntax
         '''
-        props = ''
-        for prop in self.properties:
-            props += str(self.properties[prop])
+        props = "".join(map(str, self.properties.values()))
         return self.TEMPLATE.format(id=to_identifier(self.key),
                                     key=self.key,
                                     tab=TAB,
