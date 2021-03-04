@@ -440,6 +440,11 @@ class JiraJuggler:
                 assignees_to_tasks[assignee].append(task)
             else:
                 assignees_to_tasks[assignee] = [task]
+                depends_property = task.properties['depends']
+                if not depends_property.value:
+                    depends_property.name = 'start'
+                    depends_property.PREFIX = ''
+                    depends_property.append_value('${now}')
 
 
 if __name__ == "__main__":
