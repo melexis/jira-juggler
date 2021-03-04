@@ -1,19 +1,18 @@
 #! /usr/bin/python3
-
 """
 Jira to task-juggler extraction script
 
-This script queries Jira, and generates a task-juggler input file in order to generate a gant-chart.
+This script queries Jira, and generates a task-juggler input file to generate a Gantt chart.
 """
-
-from getpass import getpass
 import argparse
 import logging
+from abc import ABC
+from getpass import getpass
+
 from jira import JIRA, JIRAError
 
 DEFAULT_LOGLEVEL = 'warning'
 DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'
-DEFAULT_JIRA_USER = 'swcc'
 DEFAULT_JIRA_QUERY = 'project = X AND fixVersion = Y'
 DEFAULT_OUTPUT = 'jira_export.tjp'
 
@@ -48,7 +47,7 @@ def to_identifier(key):
     return key.replace('-', '_')
 
 
-class JugglerTaskProperty(object):
+class JugglerTaskProperty(ABC):
     '''Class for a property of a Task Juggler'''
 
     DEFAULT_NAME = 'property name'
@@ -123,8 +122,8 @@ class JugglerTaskProperty(object):
 
         Args:
             task (JugglerTask): Task to which the property belongs
-            tasks (list):       List of JugglerTask's to which the current task belongs. Will be used to
-                                verify relations to other tasks.
+            tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
+                verify relations to other tasks.
         '''
         pass
 
@@ -135,7 +134,6 @@ class JugglerTaskProperty(object):
         Returns:
             str: String representation of the task property in juggler syntax
         '''
-
         if self.get_value() is not None:
             return self.TEMPLATE.format(prop=self.get_name(),
                                         value=self.VALUE_TEMPLATE.format(prefix=self.PREFIX,
@@ -197,8 +195,8 @@ class JugglerTaskEffort(JugglerTaskProperty):
 
         Args:
             task (JugglerTask): Task to which the property belongs
-            tasks (list):       List of JugglerTask's to which the current task belongs. Will be used to
-                                verify relations to other tasks.
+            tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
+                verify relations to other tasks.
         '''
         if self.get_value() == 0:
             logging.warning('Estimate for %s, is 0. Excluding', task.key)
@@ -246,8 +244,8 @@ class JugglerTaskDepends(JugglerTaskProperty):
 
         Args:
             task (JugglerTask): Task to which the property belongs
-            tasks (list):       List of JugglerTask's to which the current task belongs. Will be used to
-                                verify relations to other tasks.
+            tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
+                verify relations to other tasks.
         '''
         for val in self.get_value():
             if val not in [to_identifier(tsk.key) for tsk in tasks]:
@@ -275,8 +273,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
         return ''
 
 
-class JugglerTask(object):
-
+class JugglerTask:
     '''Class for a task for Task-Juggler'''
 
     DEFAULT_KEY = 'NOT_INITIALIZED'
@@ -318,8 +315,8 @@ task {id} "{description}" {{
         Validate (and correct) the current task
 
         Args:
-            tasks (list): List of JugglerTask's to which the current task belongs. Will be used to
-                          verify relations to other tasks.
+            tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
+                verify relations to other tasks.
         '''
         if self.key == self.DEFAULT_KEY:
             logging.error('Found a task which is not initialized')
@@ -380,7 +377,7 @@ class JiraJuggler(object):
         Validate (and correct) tasks
 
         Args:
-            tasks (list): List of JugglerTask's to validate
+            tasks (list): List of JugglerTask instances to validate
         '''
         for task in tasks:
             task.validate(tasks)
@@ -390,7 +387,7 @@ class JiraJuggler(object):
         Load issues from Jira
 
         Returns:
-            list: A list of dicts containing the Jira tickets
+            list: A list of JugglerTask instances
         '''
         tasks = []
         busy = True
