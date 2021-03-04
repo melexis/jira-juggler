@@ -339,11 +339,10 @@ task {id} "{description}" {{
                                     props=props)
 
 
-class JiraJuggler(object):
-
+class JiraJuggler:
     '''Class for task-juggling Jira results'''
 
-    def __init__(self, url, user, passwd, query):
+    def __init__(self, url, user, passwd, query, depend_on_preceding=False):
         '''
         Construct a JIRA juggler object
 
@@ -352,12 +351,15 @@ class JiraJuggler(object):
             user (str): Username on JIRA server
             passwd (str): Password of username on JIRA server
             query (str): The Query to run on JIRA server
+            depend_on_preceding (bool): True to let each task depend on the preceding task that has the same user
+                allocated to it, unless it is already linked; False to not add these links
         '''
 
         logging.info('Jira server: %s', url)
 
         self.jirahandle = JIRA(url, basic_auth=(user, passwd))
         self.set_query(query)
+        self.depend_on_preceding = depend_on_preceding
 
     def set_query(self, query):
         '''
@@ -408,7 +410,8 @@ class JiraJuggler(object):
                 tasks.append(JugglerTask(issue))
 
         self.validate_tasks(tasks)
-
+        if self.depend_on_preceding:
+            self.link_to_preceding_task(tasks)
         return tasks
 
     def juggle(self, output=None):
@@ -416,30 +419,43 @@ class JiraJuggler(object):
         Query JIRA and generate task-juggler output from given issues
 
         Args:
-            output (str): Name of output file, for task-juggler
+            list: A list of JugglerTask instances
         '''
-        issues = self.load_issues_from_jira()
-        if not issues:
+        juggler_tasks = self.load_issues_from_jira()
+        if not juggler_tasks:
             return None
         if output:
             with open(output, 'w') as out:
-                for issue in issues:
-                    out.write(str(issue))
-        return issues
+                for task in juggler_tasks:
+                    out.write(str(task))
+        return juggler_tasks
+
+    def link_to_preceding_task(self, tasks):
+        assignees_to_tasks = {}  # maps assignee to tasks
+        for task in tasks:
+            assignee = str(task.properties['allocate'])
+            if assignee in assignees_to_tasks:
+                preceding_task = assignees_to_tasks[assignee][-1]
+                task.properties['depends'].append_value(preceding_task.key)
+                assignees_to_tasks[assignee].append(task)
+            else:
+                assignees_to_tasks[assignee] = [task]
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', '--loglevel', default=DEFAULT_LOGLEVEL,
-                           help='Level for logging (strings from logging python package)')
+                        help='Level for logging (strings from logging python package)')
     parser.add_argument('-j', '--jira', dest='url', default=DEFAULT_JIRA_URL,
-                           help='URL to JIRA server')
+                        help='URL to JIRA server')
     parser.add_argument('-u', '--username', required=True,
-                           help='Your username on JIRA server')
+                        help='Your username on JIRA server')
     parser.add_argument('-q', '--query', default=DEFAULT_JIRA_QUERY, required=True,
-                           help='Query to perform on JIRA server')
+                        help='Query to perform on JIRA server')
     parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
-                           help='Output .tjp file for task-juggler')
+                        help='Output .tjp file for task-juggler')
+    parser.add_argument('--depend-on-preceding', action='store_true',
+                        help='Flag to let tasks depend on the preceding task with the same assignee')
 
     args = parser.parse_args()
 
@@ -447,6 +463,6 @@ if __name__ == "__main__":
 
     PASSWORD = getpass('Enter JIRA password for {user}: '.format(user=args.username))
 
-    JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query)
+    JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query, depend_on_preceding=args.depend_on_preceding)
 
     JUGGLER.juggle(args.output)
