@@ -188,7 +188,6 @@ class JugglerTaskEffort(JugglerTaskProperty):
         if self.get_value() == 0:
             logging.warning('Estimate for %s, is 0. Excluding', task.key)
             tasks.remove(task)
-            return
         elif self.get_value() < self.MINIMAL_VALUE:
             logging.warning('Estimate %s%s too low for %s, assuming %s%s', self.get_value(), self.UNIT, task.key, self.MINIMAL_VALUE, self.UNIT)
             self.set_value(self.MINIMAL_VALUE)
