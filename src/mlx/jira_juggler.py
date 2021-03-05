@@ -13,7 +13,6 @@ from jira import JIRA, JIRAError
 
 DEFAULT_LOGLEVEL = 'warning'
 DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'
-DEFAULT_JIRA_QUERY = 'project = X AND fixVersion = Y'
 DEFAULT_OUTPUT = 'jira_export.tjp'
 
 JIRA_PAGE_SIZE = 50
@@ -409,7 +408,7 @@ if __name__ == "__main__":
                         help='URL to JIRA server')
     parser.add_argument('-u', '--username', required=True,
                         help='Your username on JIRA server')
-    parser.add_argument('-q', '--query', default=DEFAULT_JIRA_QUERY, required=True,
+    parser.add_argument('-q', '--query', required=True,
                         help='Query to perform on JIRA server')
     parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
                         help='Output .tjp file for task-juggler')
