@@ -22,12 +22,11 @@ TAB = ' ' * 4
 
 
 def set_logging_level(loglevel):
-    '''
-    Set the logging level
+    """Sets the logging level
 
     Args:
-        loglevel String representation of the loglevel
-    '''
+        loglevel (str): String representation of the loglevel
+    """
     numeric_level = getattr(logging, loglevel.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % loglevel)
@@ -35,20 +34,19 @@ def set_logging_level(loglevel):
 
 
 def to_identifier(key):
-    '''
-    Convert given key to identifier, interpretable by TaskJuggler as a task-identifier
+    """Converts given key to identifier, interpretable by TaskJuggler as a task-identifier
 
     Args:
         key (str): Key to be converted
 
     Returns:
         str: Valid task-identifier based on given key
-    '''
+    """
     return key.replace('-', '_')
 
 
 class JugglerTaskProperty(ABC):
-    '''Class for a property of a Task Juggler'''
+    """Class for a property of a Task Juggler"""
 
     DEFAULT_NAME = 'property name'
     DEFAULT_VALUE = 'not initialized'
@@ -58,13 +56,12 @@ class JugglerTaskProperty(ABC):
     VALUE_TEMPLATE = '{prefix}{value}{suffix}'
 
     def __init__(self, jira_issue=None):
-        '''
-        Initialize task juggler property
+        """Initializes the task juggler property
 
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
             value (object): Value of the property
-        '''
+        """
         self.name = self.DEFAULT_NAME
         self.set_value(self.DEFAULT_VALUE)
 
@@ -72,68 +69,61 @@ class JugglerTaskProperty(ABC):
             self.load_from_jira_issue(jira_issue)
 
     def load_from_jira_issue(self, jira_issue):
-        '''
-        Load the object with data from a Jira issue
+        """Loads the object with data from a Jira issue
 
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
-        '''
+        """
         pass
 
     def get_name(self):
-        '''
-        Get name for task juggler property
+        """Gets name for task juggler property
 
         Returns:
             str: Name of the task juggler property
-        '''
+        """
         return self.name
 
     def set_value(self, value):
-        '''
-        Set value for task juggler property
+        """Sets value for task juggler property
 
         Args:
             value (object): New value of the property
-        '''
+        """
         self.value = value
 
     def append_value(self, value):
-        '''
-        Append value for task juggler property
+        """Appends value for task juggler property
 
         Args:
             value (object): Value to append to the property
-        '''
+        """
         self.value.append(value)
 
     def get_value(self):
-        '''
-        Get value for task juggler property
+        """Gets value for task juggler property
 
         Returns:
             str: Value of the task juggler property
-        '''
+        """
         return self.value
 
     def validate(self, task, tasks):
-        '''
-        Validate (and correct) the current task property
+        """Validates (and corrects) the current task property
 
         Args:
             task (JugglerTask): Task to which the property belongs
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
-        '''
+        """
         pass
 
     def __str__(self):
-        '''
-        Convert task property object to the task juggler syntax
+        """Converts task property object to the task juggler syntax
 
         Returns:
             str: String representation of the task property in juggler syntax
-        '''
+        """
         if self.get_value() is not None:
             return self.TEMPLATE.format(prop=self.get_name(),
                                         value=self.VALUE_TEMPLATE.format(prefix=self.PREFIX,
@@ -143,25 +133,24 @@ class JugglerTaskProperty(ABC):
 
 
 class JugglerTaskAllocate(JugglerTaskProperty):
-    '''Class for the allocate (assignee) of a juggler task'''
+    """Class for the allocation (assignee) of a juggler task"""
 
     DEFAULT_NAME = 'allocate'
     DEFAULT_VALUE = 'not assigned'
 
     def load_from_jira_issue(self, jira_issue):
-        '''
-        Load the object with data from a Jira issue
+        """Loads the object with data from a Jira issue
 
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
-        '''
+        """
         self.set_value(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'assignee'):
             self.set_value(jira_issue.fields.assignee.name)
 
 
 class JugglerTaskEffort(JugglerTaskProperty):
-    '''Class for the effort (estimate) of a juggler task'''
+    """Class for the effort (estimate) of a juggler task"""
 
     # For converting the seconds (Jira) to days
     UNIT = 'd'
@@ -173,12 +162,11 @@ class JugglerTaskEffort(JugglerTaskProperty):
     SUFFIX = UNIT
 
     def load_from_jira_issue(self, jira_issue):
-        '''
-        Load the object with data from a Jira issue
+        """Loads the object with data from a Jira issue
 
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
-        '''
+        """
         self.set_value(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'timeestimate'):
             if jira_issue.fields.timeestimate is not None:
@@ -190,14 +178,13 @@ class JugglerTaskEffort(JugglerTaskProperty):
             logging.warning('No estimate found for %s, assuming %s%s', jira_issue.key, self.DEFAULT_VALUE, self.UNIT)
 
     def validate(self, task, tasks):
-        '''
-        Validate (and correct) the current task property
+        """Validates (and corrects) the current task property
 
         Args:
             task (JugglerTask): Task to which the property belongs
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
-        '''
+        """
         if self.get_value() == 0:
             logging.warning('Estimate for %s, is 0. Excluding', task.key)
             tasks.remove(task)
@@ -208,28 +195,26 @@ class JugglerTaskEffort(JugglerTaskProperty):
 
 
 class JugglerTaskDepends(JugglerTaskProperty):
-    '''Class for the effort (estimate) of a juggler task'''
+    """Class for linking of a juggler task"""
 
     DEFAULT_NAME = 'depends'
     DEFAULT_VALUE = []
     PREFIX = '!'
 
     def set_value(self, value):
-        '''
-        Set value for task juggler property (deep copy)
+        """Sets value for task juggler property (deep copy)
 
         Args:
             value (object): New value of the property
-        '''
+        """
         self.value = list(value)
 
     def load_from_jira_issue(self, jira_issue):
-        '''
-        Load the object with data from a Jira issue
+        """Loads the object with data from a Jira issue
 
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
-        '''
+        """
         self.set_value(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'issuelinks'):
             for link in jira_issue.fields.issuelinks:
@@ -239,26 +224,24 @@ class JugglerTaskDepends(JugglerTaskProperty):
                     self.append_value(to_identifier(link.outwardIssue.key))
 
     def validate(self, task, tasks):
-        '''
-        Validate (and correct) the current task property
+        """Validates (and corrects) the current task property
 
         Args:
             task (JugglerTask): Task to which the property belongs
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
-        '''
+        """
         for val in self.get_value():
             if val not in [to_identifier(tsk.key) for tsk in tasks]:
                 logging.warning('Removing link to %s for %s, as not within scope', val, task.key)
                 self.value.remove(val)
 
     def __str__(self):
-        '''
-        Convert task property object to the task juggler syntax
+        """Converts task property object to the task juggler syntax
 
         Returns:
             str: String representation of the task property in juggler syntax
-        '''
+        """
 
         if self.get_value():
             valstr = ''
@@ -274,7 +257,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
 
 
 class JugglerTask:
-    '''Class for a task for Task-Juggler'''
+    """Class for a task for Task-Juggler"""
 
     DEFAULT_KEY = 'NOT_INITIALIZED'
     MAX_SUMMARY_LENGTH = 70
@@ -297,12 +280,11 @@ task {id} "{description}" {{
             self.load_from_jira_issue(jira_issue)
 
     def load_from_jira_issue(self, jira_issue):
-        '''
-        Load the object with data from a Jira issue
+        """Loads the object with data from a Jira issue
 
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
-        '''
+        """
         self.key = jira_issue.key
         summary = jira_issue.fields.summary.replace('\"', '\\\"')
         self.summary = (summary[:self.MAX_SUMMARY_LENGTH] + '...') if len(summary) > self.MAX_SUMMARY_LENGTH else summary
@@ -311,13 +293,12 @@ task {id} "{description}" {{
         self.properties['depends'] = JugglerTaskDepends(jira_issue)
 
     def validate(self, tasks):
-        '''
-        Validate (and correct) the current task
+        """Validates (and corrects) the current task
 
         Args:
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
-        '''
+        """
         if self.key == self.DEFAULT_KEY:
             logging.error('Found a task which is not initialized')
 
@@ -325,12 +306,11 @@ task {id} "{description}" {{
             self.properties[prop].validate(self, tasks)
 
     def __str__(self):
-        '''
-        Convert task object to the task juggler syntax
+        """Converts the JugglerTask to the task juggler syntax
 
         Returns:
             str: String representation of the task in juggler syntax
-        '''
+        """
         props = "".join(map(str, self.properties.values()))
         return self.TEMPLATE.format(id=to_identifier(self.key),
                                     key=self.key,
@@ -340,11 +320,10 @@ task {id} "{description}" {{
 
 
 class JiraJuggler:
-    '''Class for task-juggling Jira results'''
+    """Class for task-juggling Jira results"""
 
     def __init__(self, url, user, passwd, query, depend_on_preceding=False):
-        '''
-        Construct a JIRA juggler object
+        """Constructs a JIRA juggler object
 
         Args:
             url (str): URL to the JIRA server
@@ -353,8 +332,7 @@ class JiraJuggler:
             query (str): The Query to run on JIRA server
             depend_on_preceding (bool): True to let each task depend on the preceding task that has the same user
                 allocated to it, unless it is already linked; False to not add these links
-        '''
-
+        """
         logging.info('Jira server: %s', url)
 
         self.jirahandle = JIRA(url, basic_auth=(user, passwd))
@@ -362,35 +340,31 @@ class JiraJuggler:
         self.depend_on_preceding = depend_on_preceding
 
     def set_query(self, query):
-        '''
-        Set the query for the JIRA juggler object
+        """Sets the query for the JIRA juggler object
 
         Args:
             query (str): The Query to run on JIRA server
-        '''
-
+        """
         logging.info('Query: %s', query)
         self.query = query
         self.issue_count = 0
 
     @staticmethod
     def validate_tasks(tasks):
-        '''
-        Validate (and correct) tasks
+        """Validates (and corrects) tasks
 
         Args:
             tasks (list): List of JugglerTask instances to validate
-        '''
+        """
         for task in tasks:
             task.validate(tasks)
 
     def load_issues_from_jira(self):
-        '''
-        Load issues from Jira
+        """Loads issues from Jira
 
         Returns:
             list: A list of JugglerTask instances
-        '''
+        """
         tasks = []
         busy = True
         while busy:
@@ -415,12 +389,11 @@ class JiraJuggler:
         return tasks
 
     def juggle(self, output=None):
-        '''
-        Query JIRA and generate task-juggler output from given issues
+        """Queries JIRA and generates task-juggler output from given issues
 
         Args:
             list: A list of JugglerTask instances
-        '''
+        """
         juggler_tasks = self.load_issues_from_jira()
         if not juggler_tasks:
             return None
@@ -431,14 +404,14 @@ class JiraJuggler:
         return juggler_tasks
 
     def link_to_preceding_task(self, tasks):
-        '''Link task to preceding task with the same assignee.
+        """Links task to preceding task with the same assignee.
 
         If it's the first task for a given assignee and it's not linked with 'depends on'/'is blocked by' through JIRA,
         'start ${now}' is added instead.
 
         Args:
             tasks (list): List of JugglerTask instances to modify
-        '''
+        """
         assignees_to_tasks = {}
         for task in tasks:
             assignee = str(task.properties['allocate'])
