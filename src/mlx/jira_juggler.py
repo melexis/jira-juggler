@@ -300,8 +300,8 @@ task {id} "{description}" {{
         if self.key == self.DEFAULT_KEY:
             logging.error('Found a task which is not initialized')
 
-        for prop in self.properties:
-            self.properties[prop].validate(self, tasks)
+        for task_property in self.properties.values():
+            task_property.validate(self, tasks)
 
     def __str__(self):
         """Converts the JugglerTask to the task juggler syntax
