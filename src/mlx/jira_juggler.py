@@ -6,7 +6,7 @@ This script queries Jira, and generates a task-juggler input file to generate a 
 """
 import argparse
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 from getpass import getpass
 
 from jira import JIRA, JIRAError
@@ -68,13 +68,13 @@ class JugglerTaskProperty(ABC):
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
 
+    @abstractmethod
     def load_from_jira_issue(self, jira_issue):
         """Loads the object with data from a Jira issue
 
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        pass
 
     def get_name(self):
         """Gets name for task juggler property
@@ -116,7 +116,6 @@ class JugglerTaskProperty(ABC):
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
         """
-        pass
 
     def __str__(self):
         """Converts task property object to the task juggler syntax
