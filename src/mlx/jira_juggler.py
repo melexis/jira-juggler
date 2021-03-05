@@ -400,7 +400,7 @@ class JiraJuggler:
                     depends_property.append_value('${now}')
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', '--loglevel', default=DEFAULT_LOGLEVEL,
                         help='Level for logging (strings from logging python package)')
@@ -424,3 +424,13 @@ if __name__ == "__main__":
     JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query, depend_on_preceding=args.depend_on_preceding)
 
     JUGGLER.juggle(args.output)
+    return 0
+
+
+def entrypoint():
+    """Wrapper function of main"""
+    raise SystemExit(main())
+
+
+if __name__ == "__main__":
+    entrypoint()

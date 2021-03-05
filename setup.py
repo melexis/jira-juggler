@@ -29,6 +29,7 @@ setup(
     platforms='any',
     packages=find_packages('src'),
     package_dir={'': 'src'},
+    entry_points={'console_scripts': ['jira-juggler = mlx.jira_juggler:entrypoint']},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     include_package_data=True,
     install_requires=['jira'],
