@@ -403,7 +403,8 @@ class JiraJuggler:
                     out.write(str(task))
         return juggler_tasks
 
-    def link_to_preceding_task(self, tasks):
+    @staticmethod
+    def link_to_preceding_task(tasks):
         """Links task to preceding task with the same assignee.
 
         If it's the first task for a given assignee and it's not linked with 'depends on'/'is blocked by' through JIRA,
