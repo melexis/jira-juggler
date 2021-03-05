@@ -63,7 +63,7 @@ class JugglerTaskProperty(ABC):
             value (object): Value of the property
         """
         self.name = self.DEFAULT_NAME
-        self.set_value(self.DEFAULT_VALUE)
+        self.value = self.DEFAULT_VALUE
 
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
@@ -76,22 +76,6 @@ class JugglerTaskProperty(ABC):
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
 
-    def get_name(self):
-        """Gets name for task juggler property
-
-        Returns:
-            str: Name of the task juggler property
-        """
-        return self.name
-
-    def set_value(self, value):
-        """Sets value for task juggler property
-
-        Args:
-            value (object): New value of the property
-        """
-        self.value = value
-
     def append_value(self, value):
         """Appends value for task juggler property
 
@@ -99,14 +83,6 @@ class JugglerTaskProperty(ABC):
             value (object): Value to append to the property
         """
         self.value.append(value)
-
-    def get_value(self):
-        """Gets value for task juggler property
-
-        Returns:
-            str: Value of the task juggler property
-        """
-        return self.value
 
     def validate(self, task, tasks):
         """Validates (and corrects) the current task property
@@ -123,10 +99,10 @@ class JugglerTaskProperty(ABC):
         Returns:
             str: String representation of the task property in juggler syntax
         """
-        if self.get_value() is not None:
-            return self.TEMPLATE.format(prop=self.get_name(),
+        if self.value is not None:
+            return self.TEMPLATE.format(prop=self.name,
                                         value=self.VALUE_TEMPLATE.format(prefix=self.PREFIX,
-                                                                         value=self.get_value(),
+                                                                         value=self.value,
                                                                          suffix=self.SUFFIX))
         return ''
 
@@ -143,9 +119,10 @@ class JugglerTaskAllocate(JugglerTaskProperty):
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        self.set_value(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'assignee'):
-            self.set_value(jira_issue.fields.assignee.name)
+            self.value = jira_issue.fields.assignee.name
+        else:
+            self.value = self.DEFAULT_VALUE
 
 
 class JugglerTaskEffort(JugglerTaskProperty):
@@ -166,14 +143,14 @@ class JugglerTaskEffort(JugglerTaskProperty):
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        self.set_value(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'timeestimate'):
             if jira_issue.fields.timeestimate is not None:
                 val = jira_issue.fields.timeestimate
-                self.set_value(val / self.FACTOR)
+                self.value = (val / self.FACTOR)
             else:
-                self.set_value(0)
+                self.value = 0
         else:
+            self.value = self.DEFAULT_VALUE
             logging.warning('No estimate found for %s, assuming %s%s', jira_issue.key, self.DEFAULT_VALUE, self.UNIT)
 
     def validate(self, task, tasks):
@@ -184,12 +161,12 @@ class JugglerTaskEffort(JugglerTaskProperty):
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
         """
-        if self.get_value() == 0:
+        if self.value == 0:
             logging.warning('Estimate for %s, is 0. Excluding', task.key)
             tasks.remove(task)
-        elif self.get_value() < self.MINIMAL_VALUE:
-            logging.warning('Estimate %s%s too low for %s, assuming %s%s', self.get_value(), self.UNIT, task.key, self.MINIMAL_VALUE, self.UNIT)
-            self.set_value(self.MINIMAL_VALUE)
+        elif self.value < self.MINIMAL_VALUE:
+            logging.warning('Estimate %s%s too low for %s, assuming %s%s', self.value, self.UNIT, task.key, self.MINIMAL_VALUE, self.UNIT)
+            self.value = self.MINIMAL_VALUE
 
 
 class JugglerTaskDepends(JugglerTaskProperty):
@@ -199,13 +176,19 @@ class JugglerTaskDepends(JugglerTaskProperty):
     DEFAULT_VALUE = []
     PREFIX = '!'
 
-    def set_value(self, value):
+    @property
+    def value(self):
+        """list: Value of the task juggler property"""
+        return self._value
+
+    @value.setter
+    def value(self, value):
         """Sets value for task juggler property (deep copy)
 
         Args:
             value (object): New value of the property
         """
-        self.value = list(value)
+        self._value = list(value)
 
     def load_from_jira_issue(self, jira_issue):
         """Loads the object with data from a Jira issue
@@ -213,7 +196,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        self.set_value(self.DEFAULT_VALUE)
+        self.value = self.DEFAULT_VALUE
         if hasattr(jira_issue.fields, 'issuelinks'):
             for link in jira_issue.fields.issuelinks:
                 if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
@@ -229,7 +212,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
         """
-        for val in self.get_value():
+        for val in self.value:
             if val not in [to_identifier(tsk.key) for tsk in tasks]:
                 logging.warning('Removing link to %s for %s, as not within scope', val, task.key)
                 self.value.remove(val)
@@ -240,16 +223,15 @@ class JugglerTaskDepends(JugglerTaskProperty):
         Returns:
             str: String representation of the task property in juggler syntax
         """
-
-        if self.get_value():
+        if self.value:
             valstr = ''
-            for val in self.get_value():
+            for val in self.value:
                 if valstr:
                     valstr += ', '
                 valstr += self.VALUE_TEMPLATE.format(prefix=self.PREFIX,
                                                      value=val,
                                                      suffix=self.SUFFIX)
-            return self.TEMPLATE.format(prop=self.get_name(),
+            return self.TEMPLATE.format(prop=self.name,
                                         value=valstr)
         return ''
 
@@ -334,18 +316,10 @@ class JiraJuggler:
         logging.info('Jira server: %s', url)
 
         self.jirahandle = JIRA(url, basic_auth=(user, passwd))
-        self.set_query(query)
-        self.depend_on_preceding = depend_on_preceding
-
-    def set_query(self, query):
-        """Sets the query for the JIRA juggler object
-
-        Args:
-            query (str): The Query to run on JIRA server
-        """
         logging.info('Query: %s', query)
         self.query = query
         self.issue_count = 0
+        self.depend_on_preceding = depend_on_preceding
 
     @staticmethod
     def validate_tasks(tasks):
