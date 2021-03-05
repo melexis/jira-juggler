@@ -12,7 +12,7 @@ from getpass import getpass
 from jira import JIRA, JIRAError
 
 DEFAULT_LOGLEVEL = 'warning'
-DEFAULT_JIRA_URL = 'https://jira-test.melexis.com/jira'
+DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'
 DEFAULT_JIRA_QUERY = 'project = X AND fixVersion = Y'
 DEFAULT_OUTPUT = 'jira_export.tjp'
 
