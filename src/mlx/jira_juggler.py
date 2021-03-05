@@ -431,7 +431,15 @@ class JiraJuggler:
         return juggler_tasks
 
     def link_to_preceding_task(self, tasks):
-        assignees_to_tasks = {}  # maps assignee to tasks
+        '''Link task to preceding task with the same assignee.
+
+        If it's the first task for a given assignee and it's not linked with 'depends on'/'is blocked by' through JIRA,
+        'start ${now}' is added instead.
+
+        Args:
+            tasks (list): List of JugglerTask instances to modify
+        '''
+        assignees_to_tasks = {}
         for task in tasks:
             assignee = str(task.properties['allocate'])
             if assignee in assignees_to_tasks:
