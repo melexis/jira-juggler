@@ -354,7 +354,7 @@ class JiraJuggler:
         Args:
             tasks (list): List of JugglerTask instances to validate
         """
-        for task in tasks:
+        for task in list(tasks):
             task.validate(tasks)
 
     def load_issues_from_jira(self):
