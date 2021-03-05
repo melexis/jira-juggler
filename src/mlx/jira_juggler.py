@@ -12,7 +12,7 @@ from getpass import getpass
 from jira import JIRA, JIRAError
 
 DEFAULT_LOGLEVEL = 'warning'
-DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'
+DEFAULT_JIRA_URL = 'https://jira-test.melexis.com/jira'
 DEFAULT_JIRA_QUERY = 'project = X AND fixVersion = Y'
 DEFAULT_OUTPUT = 'jira_export.tjp'
 
@@ -436,7 +436,7 @@ class JiraJuggler:
             assignee = str(task.properties['allocate'])
             if assignee in assignees_to_tasks:
                 preceding_task = assignees_to_tasks[assignee][-1]
-                task.properties['depends'].append_value(preceding_task.key)
+                task.properties['depends'].append_value(to_identifier(preceding_task.key))
                 assignees_to_tasks[assignee].append(task)
             else:
                 assignees_to_tasks[assignee] = [task]
