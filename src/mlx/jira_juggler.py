@@ -6,6 +6,7 @@ This script queries Jira, and generates a task-juggler input file to generate a 
 """
 import argparse
 import logging
+import re
 from abc import ABC, abstractmethod
 from getpass import getpass
 
@@ -254,6 +255,7 @@ task {id} "{description}" {{
         self.key = self.DEFAULT_KEY
         self.summary = self.DEFAULT_SUMMARY
         self.properties = {}
+        self.issue = None
 
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
@@ -265,6 +267,7 @@ task {id} "{description}" {{
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
         self.key = jira_issue.key
+        self.issue = jira_issue
         summary = jira_issue.fields.summary.replace('\"', '\\\"')
         self.summary = (summary[:self.MAX_SUMMARY_LENGTH] + '...') if len(summary) > self.MAX_SUMMARY_LENGTH else summary
         self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
@@ -301,7 +304,7 @@ task {id} "{description}" {{
 class JiraJuggler:
     """Class for task-juggling Jira results"""
 
-    def __init__(self, url, user, passwd, query, depend_on_preceding=False):
+    def __init__(self, url, user, passwd, query):
         """Constructs a JIRA juggler object
 
         Args:
@@ -309,8 +312,6 @@ class JiraJuggler:
             user (str): Username on JIRA server
             passwd (str): Password of username on JIRA server
             query (str): The Query to run on JIRA server
-            depend_on_preceding (bool): True to let each task depend on the preceding task that has the same user
-                allocated to it, unless it is already linked; False to not add these links
         """
         logging.info('Jira server: %s', url)
 
@@ -318,7 +319,6 @@ class JiraJuggler:
         logging.info('Query: %s', query)
         self.query = query
         self.issue_count = 0
-        self.depend_on_preceding = depend_on_preceding
 
     @staticmethod
     def validate_tasks(tasks):
@@ -330,8 +330,13 @@ class JiraJuggler:
         for task in list(tasks):
             task.validate(tasks)
 
-    def load_issues_from_jira(self):
+    def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name=''):
         """Loads issues from Jira
+
+        Args:
+            depend_on_preceding (bool): True to let each task depend on the preceding task that has the same user
+                allocated to it, unless it is already linked; False to not add these links
+            sprint_field_name (str): Name of field to sort tasks on
 
         Returns:
             list: A list of JugglerTask instances
@@ -355,17 +360,19 @@ class JiraJuggler:
                 tasks.append(JugglerTask(issue))
 
         self.validate_tasks(tasks)
-        if self.depend_on_preceding:
+        if sprint_field_name:
+            self.sort_tasks_on_sprint(tasks, sprint_field_name)
+        if depend_on_preceding:
             self.link_to_preceding_task(tasks)
         return tasks
 
-    def juggle(self, output=None):
+    def juggle(self, output=None, **kwargs):
         """Queries JIRA and generates task-juggler output from given issues
 
         Args:
             list: A list of JugglerTask instances
         """
-        juggler_tasks = self.load_issues_from_jira()
+        juggler_tasks = self.load_issues_from_jira(**kwargs)
         if not juggler_tasks:
             return None
         if output:
@@ -399,6 +406,38 @@ class JiraJuggler:
                     depends_property.PREFIX = ''
                     depends_property.append_value('${now}')
 
+    @staticmethod
+    def sort_tasks_on_sprint(tasks, sprint_field_name):
+        """Sorts given list of tasks based on the values of the field with the given name.
+
+        JIRA issues that are not assigned to a sprint will be ordered last.
+
+        Args:
+            tasks (list): List of JugglerTask instances to sort in place
+            sprint_field_name (str): Name of the field that contains information about sprints
+        """
+        priorities = {
+            "ACTIVE": 0,
+            "FUTURE": 1,
+            "CLOSED": 2,
+        }
+        for task in tasks:
+            task.priority = 3
+            if not task.issue:
+                continue
+            values = getattr(task.issue.fields, sprint_field_name, None)
+            if values is not None:
+                if isinstance(values, str):
+                    values = [values]
+                for value in values:
+                    match = re.search("state=({})".format("|".join(priorities)), value)
+                    if match:
+                        state = match.group(1)
+                        prio = priorities[state]
+                        if prio < task.priority:
+                            task.priority = prio
+        tasks.sort(key=lambda task: task.priority)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -414,16 +453,18 @@ def main():
                         help='Output .tjp file for task-juggler')
     parser.add_argument('--depend-on-preceding', action='store_true',
                         help='Flag to let tasks depend on the preceding task with the same assignee')
-
+    parser.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
+                        help="Sort tasks by using field name that stores sprint(s), e.g. customfield_10851, in "
+                             "addition to the original order")
     args = parser.parse_args()
 
     set_logging_level(args.loglevel)
 
     PASSWORD = getpass('Enter JIRA password for {user}: '.format(user=args.username))
 
-    JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query, depend_on_preceding=args.depend_on_preceding)
+    JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query)
 
-    JUGGLER.juggle(args.output)
+    JUGGLER.juggle(args.output, depend_on_preceding=args.depend_on_preceding, sprint_field_name=args.sprint_field_name)
     return 0
 
 
