@@ -439,7 +439,7 @@ class JiraJuggler:
                         state = state_match.group(1)
                         prio = priorities[state]
                         if prio > task.sprint_priority:
-                            task.sprint_name = re.search("name=(.+),", sprint_info).group(1)
+                            task.sprint_name = re.search("name=(.+?),", sprint_info).group(1)
                             task.sprint_priority = prio
                             task.sprint_start_date = self.extract_start_date(sprint_info, task.issue.key)
         logging.debug("Sorting tasks based on sprint information...")
@@ -456,7 +456,7 @@ class JiraJuggler:
         Returns:
             datetime.datetime/None: Start date as a datetime object or None if the sprint does not have a start date
         """
-        start_date_match = re.search("startDate=(.+),endDate", sprint_info)
+        start_date_match = re.search("startDate=(.+?),", sprint_info)
         if start_date_match:
             start_date_str = start_date_match.group(1)
             if start_date_str != '<null>':
