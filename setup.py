@@ -32,7 +32,7 @@ setup(
     entry_points={'console_scripts': ['jira-juggler = mlx.jira_juggler:entrypoint']},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     include_package_data=True,
-    install_requires=['jira'],
+    install_requires=['jira', 'python-dateutil>=2.8.0,<3.*', 'natsort>=7.1.0,<8.*'],
     namespace_packages=['mlx'],
     classifiers=[
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers

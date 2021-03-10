@@ -8,12 +8,15 @@ import argparse
 import logging
 import re
 from abc import ABC, abstractmethod
+from functools import cmp_to_key
 from getpass import getpass
 
+from dateutil import parser
 from jira import JIRA, JIRAError
+from natsort import natsorted, ns
 
 DEFAULT_LOGLEVEL = 'warning'
-DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'
+DEFAULT_JIRA_URL = 'https://jira-test.melexis.com/jira'
 DEFAULT_OUTPUT = 'jira_export.tjp'
 
 JIRA_PAGE_SIZE = 50
@@ -406,8 +409,7 @@ class JiraJuggler:
                     depends_property.PREFIX = ''
                     depends_property.append_value('${now}')
 
-    @staticmethod
-    def sort_tasks_on_sprint(tasks, sprint_field_name):
+    def sort_tasks_on_sprint(self, tasks, sprint_field_name):
         """Sorts given list of tasks based on the values of the field with the given name.
 
         JIRA issues that are not assigned to a sprint will be ordered last.
@@ -417,26 +419,85 @@ class JiraJuggler:
             sprint_field_name (str): Name of the field that contains information about sprints
         """
         priorities = {
-            "ACTIVE": 0,
-            "FUTURE": 1,
-            "CLOSED": 2,
+            "ACTIVE": 3,
+            "FUTURE": 2,
+            "CLOSED": 1,
         }
         for task in tasks:
-            task.priority = 3
+            task.sprint_name = ""
+            task.sprint_priority = 0
+            task.sprint_start_date = None
             if not task.issue:
                 continue
             values = getattr(task.issue.fields, sprint_field_name, None)
             if values is not None:
                 if isinstance(values, str):
                     values = [values]
-                for value in values:
-                    match = re.search("state=({})".format("|".join(priorities)), value)
-                    if match:
-                        state = match.group(1)
+                for sprint_info in values:
+                    state_match = re.search("state=({})".format("|".join(priorities)), sprint_info)
+                    if state_match:
+                        state = state_match.group(1)
                         prio = priorities[state]
-                        if prio < task.priority:
-                            task.priority = prio
-        tasks.sort(key=lambda task: task.priority)
+                        if prio > task.sprint_priority:
+                            task.sprint_name = re.search("name=(.+),", sprint_info).group(1)
+                            task.sprint_priority = prio
+                            task.sprint_start_date = self.extract_start_date(sprint_info, task.issue.key)
+        logging.debug("Sorting tasks based on sprint information...")
+        tasks.sort(key=cmp_to_key(self.compare_sprint_priority))
+
+    @staticmethod
+    def extract_start_date(sprint_info, issue_key):
+        """Extracts the start date from the given info string.
+
+        Args:
+            sprint_info (str): Raw information about a sprint, as returned by the JIRA API
+            issue_key (str): Name of the JIRA issue
+
+        Returns:
+            datetime.datetime/None: Start date as a datetime object or None if the sprint does not have a start date
+        """
+        start_date_match = re.search("startDate=(.+),endDate", sprint_info)
+        if start_date_match:
+            start_date_str = start_date_match.group(1)
+            if start_date_str != '<null>':
+                try:
+                    return parser.parse(start_date_match.group(1))
+                except parser.ParserError as err:
+                    logging.debug("Failed to parse start date of sprint of issue %s: %s", issue_key, err)
+        return None
+
+    @staticmethod
+    def compare_sprint_priority(a, b):
+        """Compares the priority of two tasks based on the sprint information
+
+        The sprint_priority attribute is taken into account first, followed by the sprint_start_date and, lastly, the
+        sprint_name attribute using natural sorting (a sprint with the word 'backlog' in its name is sorted as last).
+
+        Args:
+            a (JugglerTask): First JugglerTask instance in the comparison
+            b (JugglerTask): Second JugglerTask instance in the comparison
+
+        Returns:
+            int: 0 for equal priority; -1 to prioritize a over b; 1 otherwise
+        """
+        if a.sprint_priority > b.sprint_priority:
+            return -1
+        if a.sprint_priority < b.sprint_priority:
+            return 1
+        if a.sprint_priority == 0 or a.sprint_name == b.sprint_name:
+            return 0  # no/same sprint associated with both issues
+        if a.sprint_start_date == b.sprint_start_date:
+            # a sprint with backlog in its name has lower priority
+            if "backlog" not in a.sprint_name.lower() and "backlog" in b.sprint_name.lower():
+                return -1
+            if "backlog" in a.sprint_name.lower() and "backlog" not in b.sprint_name.lower():
+                return 1
+            if natsorted([a.sprint_name, b.sprint_name], alg=ns.IGNORECASE)[0] == a.sprint_name:
+                return -1
+            return 1
+        elif a.sprint_start_date < b.sprint_start_date:
+            return -1
+        return 1
 
 
 def main():
