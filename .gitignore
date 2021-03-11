@@ -95,3 +95,5 @@ pip-selfcheck.json
 # vim
 *.swp
 
+# Offline version file
+src/mlx/__version__.py
