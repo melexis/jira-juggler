@@ -23,7 +23,7 @@ matrix:
         - TOXENV=py38,codecov
     - python: '3.9'
       env:
-        - TOXENV=py39,codecov
+        - TOXENV=py39,check,codecov
 
 before_install:
   - python --version
