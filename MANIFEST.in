@@ -11,6 +11,8 @@ global-exclude *.py[cod] __pycache__ *.so *.dylib
 
 include NOTICE
 
+exclude src/mlx/__version__.py
+
 # added by check_manifest.py
 include *.tjp
 include Makefile

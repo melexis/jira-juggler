@@ -1,38 +1,27 @@
-import io
-from glob import glob
-from os.path import basename, dirname, join, splitext
-
 from setuptools import find_packages, setup
 
 PROJECT_URL = 'https://github.com/melexis/jira-juggler'
-VERSION = '1.1.0'
-
-
-def read(*names, **kwargs):
-    return io.open(
-        join(dirname(__file__), *names),
-        encoding=kwargs.get('encoding', 'utf8')
-    ).read()
-
 
 setup(
     name='mlx.jira_juggler',
-    version=VERSION,
+    use_scm_version={
+        'write_to': 'src/mlx/__version__.py'
+    },
     url=PROJECT_URL,
-    download_url=PROJECT_URL + '/tarball/' + VERSION,
     author='Stein Heselmans',
     author_email='teh@melexis.com',
     description='A python script for extracting data from Jira, and converting to task-juggler (tj3) output',
     long_description=open("README.rst").read(),
+    long_description_content_type='text/x-rst',
     zip_safe=False,
     license='Apache License, Version 2.0',
     platforms='any',
     packages=find_packages('src'),
     package_dir={'': 'src'},
     entry_points={'console_scripts': ['jira-juggler = mlx.jira_juggler:entrypoint']},
-    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     include_package_data=True,
     install_requires=['jira', 'python-dateutil>=2.8.0,<3.*', 'natsort>=7.1.0,<8.*'],
+    setup_requires=['setuptools_scm'],
     namespace_packages=['mlx'],
     classifiers=[
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
