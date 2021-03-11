@@ -1,6 +1,3 @@
-from glob import glob
-from os.path import basename, splitext
-
 from setuptools import find_packages, setup
 
 PROJECT_URL = 'https://github.com/melexis/jira-juggler'
@@ -22,7 +19,6 @@ setup(
     packages=find_packages('src'),
     package_dir={'': 'src'},
     entry_points={'console_scripts': ['jira-juggler = mlx.jira_juggler:entrypoint']},
-    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
     include_package_data=True,
     install_requires=['jira', 'python-dateutil>=2.8.0,<3.*', 'natsort>=7.1.0,<8.*'],
     setup_requires=['setuptools_scm'],
