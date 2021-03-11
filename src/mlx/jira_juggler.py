@@ -6,13 +6,17 @@ This script queries Jira, and generates a task-juggler input file to generate a 
 """
 import argparse
 import logging
+import re
 from abc import ABC, abstractmethod
+from functools import cmp_to_key
 from getpass import getpass
 
+from dateutil import parser
 from jira import JIRA, JIRAError
+from natsort import natsorted, ns
 
 DEFAULT_LOGLEVEL = 'warning'
-DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'
+DEFAULT_JIRA_URL = 'https://jira-test.melexis.com/jira'
 DEFAULT_OUTPUT = 'jira_export.tjp'
 
 JIRA_PAGE_SIZE = 50
@@ -254,6 +258,7 @@ task {id} "{description}" {{
         self.key = self.DEFAULT_KEY
         self.summary = self.DEFAULT_SUMMARY
         self.properties = {}
+        self.issue = None
 
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
@@ -265,6 +270,7 @@ task {id} "{description}" {{
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
         self.key = jira_issue.key
+        self.issue = jira_issue
         summary = jira_issue.fields.summary.replace('\"', '\\\"')
         self.summary = (summary[:self.MAX_SUMMARY_LENGTH] + '...') if len(summary) > self.MAX_SUMMARY_LENGTH else summary
         self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
@@ -301,7 +307,7 @@ task {id} "{description}" {{
 class JiraJuggler:
     """Class for task-juggling Jira results"""
 
-    def __init__(self, url, user, passwd, query, depend_on_preceding=False):
+    def __init__(self, url, user, passwd, query):
         """Constructs a JIRA juggler object
 
         Args:
@@ -309,8 +315,6 @@ class JiraJuggler:
             user (str): Username on JIRA server
             passwd (str): Password of username on JIRA server
             query (str): The Query to run on JIRA server
-            depend_on_preceding (bool): True to let each task depend on the preceding task that has the same user
-                allocated to it, unless it is already linked; False to not add these links
         """
         logging.info('Jira server: %s', url)
 
@@ -318,7 +322,6 @@ class JiraJuggler:
         logging.info('Query: %s', query)
         self.query = query
         self.issue_count = 0
-        self.depend_on_preceding = depend_on_preceding
 
     @staticmethod
     def validate_tasks(tasks):
@@ -330,8 +333,13 @@ class JiraJuggler:
         for task in list(tasks):
             task.validate(tasks)
 
-    def load_issues_from_jira(self):
+    def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name=''):
         """Loads issues from Jira
+
+        Args:
+            depend_on_preceding (bool): True to let each task depend on the preceding task that has the same user
+                allocated to it, unless it is already linked; False to not add these links
+            sprint_field_name (str): Name of field to sort tasks on
 
         Returns:
             list: A list of JugglerTask instances
@@ -355,17 +363,19 @@ class JiraJuggler:
                 tasks.append(JugglerTask(issue))
 
         self.validate_tasks(tasks)
-        if self.depend_on_preceding:
+        if sprint_field_name:
+            self.sort_tasks_on_sprint(tasks, sprint_field_name)
+        if depend_on_preceding:
             self.link_to_preceding_task(tasks)
         return tasks
 
-    def juggle(self, output=None):
+    def juggle(self, output=None, **kwargs):
         """Queries JIRA and generates task-juggler output from given issues
 
         Args:
             list: A list of JugglerTask instances
         """
-        juggler_tasks = self.load_issues_from_jira()
+        juggler_tasks = self.load_issues_from_jira(**kwargs)
         if not juggler_tasks:
             return None
         if output:
@@ -399,6 +409,96 @@ class JiraJuggler:
                     depends_property.PREFIX = ''
                     depends_property.append_value('${now}')
 
+    def sort_tasks_on_sprint(self, tasks, sprint_field_name):
+        """Sorts given list of tasks based on the values of the field with the given name.
+
+        JIRA issues that are not assigned to a sprint will be ordered last.
+
+        Args:
+            tasks (list): List of JugglerTask instances to sort in place
+            sprint_field_name (str): Name of the field that contains information about sprints
+        """
+        priorities = {
+            "ACTIVE": 3,
+            "FUTURE": 2,
+            "CLOSED": 1,
+        }
+        for task in tasks:
+            task.sprint_name = ""
+            task.sprint_priority = 0
+            task.sprint_start_date = None
+            if not task.issue:
+                continue
+            values = getattr(task.issue.fields, sprint_field_name, None)
+            if values is not None:
+                if isinstance(values, str):
+                    values = [values]
+                for sprint_info in values:
+                    state_match = re.search("state=({})".format("|".join(priorities)), sprint_info)
+                    if state_match:
+                        state = state_match.group(1)
+                        prio = priorities[state]
+                        if prio > task.sprint_priority:
+                            task.sprint_name = re.search("name=(.+?),", sprint_info).group(1)
+                            task.sprint_priority = prio
+                            task.sprint_start_date = self.extract_start_date(sprint_info, task.issue.key)
+        logging.debug("Sorting tasks based on sprint information...")
+        tasks.sort(key=cmp_to_key(self.compare_sprint_priority))
+
+    @staticmethod
+    def extract_start_date(sprint_info, issue_key):
+        """Extracts the start date from the given info string.
+
+        Args:
+            sprint_info (str): Raw information about a sprint, as returned by the JIRA API
+            issue_key (str): Name of the JIRA issue
+
+        Returns:
+            datetime.datetime/None: Start date as a datetime object or None if the sprint does not have a start date
+        """
+        start_date_match = re.search("startDate=(.+?),", sprint_info)
+        if start_date_match:
+            start_date_str = start_date_match.group(1)
+            if start_date_str != '<null>':
+                try:
+                    return parser.parse(start_date_match.group(1))
+                except parser.ParserError as err:
+                    logging.debug("Failed to parse start date of sprint of issue %s: %s", issue_key, err)
+        return None
+
+    @staticmethod
+    def compare_sprint_priority(a, b):
+        """Compares the priority of two tasks based on the sprint information
+
+        The sprint_priority attribute is taken into account first, followed by the sprint_start_date and, lastly, the
+        sprint_name attribute using natural sorting (a sprint with the word 'backlog' in its name is sorted as last).
+
+        Args:
+            a (JugglerTask): First JugglerTask instance in the comparison
+            b (JugglerTask): Second JugglerTask instance in the comparison
+
+        Returns:
+            int: 0 for equal priority; -1 to prioritize a over b; 1 otherwise
+        """
+        if a.sprint_priority > b.sprint_priority:
+            return -1
+        if a.sprint_priority < b.sprint_priority:
+            return 1
+        if a.sprint_priority == 0 or a.sprint_name == b.sprint_name:
+            return 0  # no/same sprint associated with both issues
+        if a.sprint_start_date == b.sprint_start_date:
+            # a sprint with backlog in its name has lower priority
+            if "backlog" not in a.sprint_name.lower() and "backlog" in b.sprint_name.lower():
+                return -1
+            if "backlog" in a.sprint_name.lower() and "backlog" not in b.sprint_name.lower():
+                return 1
+            if natsorted([a.sprint_name, b.sprint_name], alg=ns.IGNORECASE)[0] == a.sprint_name:
+                return -1
+            return 1
+        elif a.sprint_start_date < b.sprint_start_date:
+            return -1
+        return 1
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -414,16 +514,18 @@ def main():
                         help='Output .tjp file for task-juggler')
     parser.add_argument('--depend-on-preceding', action='store_true',
                         help='Flag to let tasks depend on the preceding task with the same assignee')
-
+    parser.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
+                        help="Sort tasks by using field name that stores sprint(s), e.g. customfield_10851, in "
+                             "addition to the original order")
     args = parser.parse_args()
 
     set_logging_level(args.loglevel)
 
     PASSWORD = getpass('Enter JIRA password for {user}: '.format(user=args.username))
 
-    JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query, depend_on_preceding=args.depend_on_preceding)
+    JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query)
 
-    JUGGLER.juggle(args.output)
+    JUGGLER.juggle(args.output, depend_on_preceding=args.depend_on_preceding, sprint_field_name=args.sprint_field_name)
     return 0
 
 
