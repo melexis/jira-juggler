@@ -1,18 +1,9 @@
-import io
 from glob import glob
-from os.path import basename, dirname, join, splitext
+from os.path import basename, splitext
 
 from setuptools import find_packages, setup
 
 PROJECT_URL = 'https://github.com/melexis/jira-juggler'
-
-
-def read(*names, **kwargs):
-    return io.open(
-        join(dirname(__file__), *names),
-        encoding=kwargs.get('encoding', 'utf8')
-    ).read()
-
 
 setup(
     name='mlx.jira_juggler',
