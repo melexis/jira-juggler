@@ -15,6 +15,7 @@ setup(
     author_email='teh@melexis.com',
     description='A python script for extracting data from Jira, and converting to task-juggler (tj3) output',
     long_description=open("README.rst").read(),
+    long_description_content_type='text/x-rst',
     zip_safe=False,
     license='Apache License, Version 2.0',
     platforms='any',
