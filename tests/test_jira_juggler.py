@@ -8,11 +8,11 @@ import unittest
 
 try:
     from unittest.mock import MagicMock, patch, call
-except ImportError as err:
+except ImportError:
     print("unittest.mock import failed")
     try:
         from mock import MagicMock, patch, call
-    except ImportError as err:
+    except ImportError:
         print("mock import failed. installing mock")
         import pip
         pip.main(['install', 'mock'])
@@ -22,7 +22,7 @@ import mlx.jira_juggler as dut
 
 try:
     from jira import JIRA
-except ImportError as err:
+except ImportError:
     print("jira import failed")
     import pip
     pip.main(['install', 'jira'])
