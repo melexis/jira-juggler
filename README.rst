@@ -32,7 +32,7 @@ See help from python module:
 
 .. code::
 
-    python -m mlx.jira_juggler -h
+    jira-juggler -h
 
 .. warning::
 

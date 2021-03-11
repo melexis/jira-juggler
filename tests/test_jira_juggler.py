@@ -132,9 +132,9 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
-        self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
-        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
+        self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
+        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
+        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_single_task_minimal(self, jira_mock):
@@ -156,7 +156,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
-        self.assertEqual(dut.JugglerTaskEffort.DEFAULT_VALUE, issues[0].properties['effort'].get_value())
+        self.assertEqual(dut.JugglerTaskEffort.DEFAULT_VALUE, issues[0].properties['effort'].value)
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_estimate_too_low(self, jira_mock):
@@ -176,7 +176,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
-        self.assertEqual(dut.JugglerTaskEffort.MINIMAL_VALUE, issues[0].properties['effort'].get_value())
+        self.assertEqual(dut.JugglerTaskEffort.MINIMAL_VALUE, issues[0].properties['effort'].value)
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_broken_depends(self, jira_mock):
@@ -196,7 +196,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
-        self.assertEqual([], issues[0].properties['depends'].get_value())
+        self.assertEqual([], issues[0].properties['depends'].value)
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_task_depends(self, jira_mock):
@@ -223,14 +223,14 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(2, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
-        self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
-        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
+        self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
+        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
+        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
         self.assertEqual(self.KEY2, issues[1].key)
         self.assertEqual(self.SUMMARY2, issues[1].summary)
-        self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
-        self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value())
+        self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].value)
+        self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[1].properties['effort'].value)
+        self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].value)
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_task_double_depends(self, jira_mock):
@@ -262,19 +262,19 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(3, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
-        self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].get_value())
-        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].get_value())
+        self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
+        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
+        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
         self.assertEqual(self.KEY2, issues[1].key)
         self.assertEqual(self.SUMMARY2, issues[1].summary)
-        self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[1].properties['effort'].get_value())
-        self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].get_value())
+        self.assertEqual(self.ASSIGNEE2, issues[1].properties['allocate'].value)
+        self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[1].properties['effort'].value)
+        self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].value)
         self.assertEqual(self.KEY3, issues[2].key)
         self.assertEqual(self.SUMMARY3, issues[2].summary)
-        self.assertEqual(self.ASSIGNEE3, issues[2].properties['allocate'].get_value())
-        self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].get_value())
-        self.assertEqual(self.DEPENDS3, issues[2].properties['depends'].get_value())
+        self.assertEqual(self.ASSIGNEE3, issues[2].properties['allocate'].value)
+        self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].value)
+        self.assertEqual(self.DEPENDS3, issues[2].properties['depends'].value)
 
     def _mock_jira_issue(self, key, summary, assignee=None, estimate=None, depends=[]):
         '''
