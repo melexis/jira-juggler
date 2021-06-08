@@ -146,9 +146,17 @@ class JugglerTaskEffort(JugglerTaskProperty):
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        if hasattr(jira_issue.fields, 'timeestimate'):
-            if jira_issue.fields.timeestimate is not None:
-                val = jira_issue.fields.timeestimate
+        if hasattr(jira_issue.fields, 'timeoriginalestimate'):
+            estimated_time = jira_issue.fields.timeoriginalestimate
+            if estimated_time is not None:
+                remaining_time = jira_issue.fields.timeestimate
+                logged_time = jira_issue.fields.timespent
+                if jira_issue.fields.resolution:
+                    # closed ticket: prioritize Logged time over Estimated
+                    val = logged_time if logged_time else estimated_time
+                else:
+                    # open ticket prioritize Remaining time over Estimated
+                    val = remaining_time if remaining_time else estimated_time
                 self.value = (val / self.FACTOR)
             else:
                 self.value = 0
