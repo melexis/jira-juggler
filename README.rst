@@ -40,3 +40,9 @@ See help from python module:
     to the tj3-file. The list of tasks needs to be embedded in a complete tj3-file. See the
     `TaskJuggler website <http://taskjuggler.org/>`_ for more details.
 
+.. note::
+
+    To properly include closed JIRA tickets, your `--query` should order by resolution date.
+
+    Example: `(resolution !=  Invalid OR resolution = Unresolved) ORDER BY resolutiondate ASC`
+
