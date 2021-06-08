@@ -512,7 +512,7 @@ def main():
                         help='Query to perform on JIRA server')
     parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
                         help='Output .tjp file for task-juggler')
-    parser.add_argument('--depend-on-preceding', action='store_true',
+    parser.add_argument('-D', '--depend-on-preceding', action='store_true',
                         help='Flag to let tasks depend on the preceding task with the same assignee')
     parser.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
                         help="Sort tasks by using field name that stores sprint(s), e.g. customfield_10851, in "
