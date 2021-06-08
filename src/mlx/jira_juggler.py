@@ -79,14 +79,6 @@ class JugglerTaskProperty(ABC):
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
 
-    def append_value(self, value):
-        """Appends value for task juggler property
-
-        Args:
-            value (object): Value to append to the property
-        """
-        self.value.append(value)
-
     def validate(self, task, tasks):
         """Validates (and corrects) the current task property
 
@@ -192,6 +184,14 @@ class JugglerTaskDepends(JugglerTaskProperty):
             value (object): New value of the property
         """
         self._value = list(value)
+
+    def append_value(self, value):
+        """Appends value for task juggler property
+
+        Args:
+            value (object): Value to append to the property
+        """
+        self.value.append(value)
 
     def load_from_jira_issue(self, jira_issue):
         """Loads the object with data from a Jira issue
@@ -349,6 +349,7 @@ class JiraJuggler:
         while busy:
             try:
                 issues = self.jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count)
+
             except JIRAError:
                 logging.error('Invalid Jira query "%s"', self.query)
                 return None
