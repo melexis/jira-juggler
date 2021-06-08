@@ -396,8 +396,11 @@ class JiraJuggler:
     def link_to_preceding_task(tasks):
         """Links task to preceding task with the same assignee.
 
-        If it's the first task for a given assignee and it's not linked with 'depends on'/'is blocked by' through JIRA,
-        'start ${now}' is added instead.
+        If the task has been resolved, 'end' is added instead not matter what, followed by the date and time on which
+        it's been closed.
+
+        If it's the first task for a given assignee and it's not linked with 'depends on'/'is blocked by' through JIRA
+        and it's not closed, 'start ${now}' is added instead.
 
         Args:
             tasks (list): List of JugglerTask instances to modify
@@ -405,17 +408,22 @@ class JiraJuggler:
         assignees_to_tasks = {}
         for task in tasks:
             assignee = str(task.properties['allocate'])
-            if assignee in assignees_to_tasks:
+            if assignee not in assignees_to_tasks:
+                assignees_to_tasks[assignee] = []
+
+            depends_property = task.properties['depends']
+            if task.issue.fields.resolution:  # closed task
+                depends_property.PREFIX = ''
+                depends_property.name = 'end'
+                depends_property.value = [task.issue.fields.resolutiondate]  # overwrite any links in JIRA
+            elif assignees_to_tasks[assignee]:  # task with dependency
                 preceding_task = assignees_to_tasks[assignee][-1]
-                task.properties['depends'].append_value(to_identifier(preceding_task.key))
-                assignees_to_tasks[assignee].append(task)
-            else:
-                assignees_to_tasks[assignee] = [task]
-                depends_property = task.properties['depends']
-                if not depends_property.value:
-                    depends_property.name = 'start'
-                    depends_property.PREFIX = ''
-                    depends_property.append_value('${now}')
+                depends_property.append_value(to_identifier(preceding_task.key))
+            elif not depends_property.value:  # first task for assignee and it is open
+                depends_property.PREFIX = ''
+                depends_property.name = 'start'
+                depends_property.append_value('${now}')
+            assignees_to_tasks[assignee].append(task)
 
     def sort_tasks_on_sprint(self, tasks, sprint_field_name):
         """Sorts given list of tasks based on the values of the field with the given name.
