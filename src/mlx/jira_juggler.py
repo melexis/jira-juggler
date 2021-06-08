@@ -349,7 +349,6 @@ class JiraJuggler:
         while busy:
             try:
                 issues = self.jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count)
-
             except JIRAError:
                 logging.error('Invalid Jira query "%s"', self.query)
                 return None
