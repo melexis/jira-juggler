@@ -79,14 +79,6 @@ class JugglerTaskProperty(ABC):
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
 
-    def append_value(self, value):
-        """Appends value for task juggler property
-
-        Args:
-            value (object): Value to append to the property
-        """
-        self.value.append(value)
-
     def validate(self, task, tasks):
         """Validates (and corrects) the current task property
 
@@ -192,6 +184,14 @@ class JugglerTaskDepends(JugglerTaskProperty):
             value (object): New value of the property
         """
         self._value = list(value)
+
+    def append_value(self, value):
+        """Appends value for task juggler property
+
+        Args:
+            value (object): Value to append to the property
+        """
+        self.value.append(value)
 
     def load_from_jira_issue(self, jira_issue):
         """Loads the object with data from a Jira issue
@@ -512,7 +512,7 @@ def main():
                         help='Query to perform on JIRA server')
     parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
                         help='Output .tjp file for task-juggler')
-    parser.add_argument('--depend-on-preceding', action='store_true',
+    parser.add_argument('-D', '--depend-on-preceding', action='store_true',
                         help='Flag to let tasks depend on the preceding task with the same assignee')
     parser.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
                         help="Sort tasks by using field name that stores sprint(s), e.g. customfield_10851, in "
