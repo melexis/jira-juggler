@@ -499,6 +499,8 @@ class JiraJuggler:
         Returns:
             int: 0 for equal priority; -1 to prioritize a over b; 1 otherwise
         """
+        if a.issue.fields.resolution or b.issue.fields.resolution:
+            return 0
         if a.sprint_priority > b.sprint_priority:
             return -1
         if a.sprint_priority < b.sprint_priority:
@@ -534,8 +536,8 @@ def main():
     parser.add_argument('--depend-on-preceding', action='store_true',
                         help='Flag to let tasks depend on the preceding task with the same assignee')
     parser.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
-                        help="Sort tasks by using field name that stores sprint(s), e.g. customfield_10851, in "
-                             "addition to the original order")
+                        help="Sort unresolved tasks by using field name that stores sprint(s), e.g. customfield_10851, "
+                             "in addition to the original order")
     args = parser.parse_args()
 
     set_logging_level(args.loglevel)
