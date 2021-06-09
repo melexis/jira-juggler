@@ -8,6 +8,7 @@ import argparse
 import logging
 import re
 from abc import ABC, abstractmethod
+from datetime import datetime
 from functools import cmp_to_key
 from getpass import getpass
 
@@ -415,7 +416,9 @@ class JiraJuggler:
             if task.issue.fields.resolution:  # closed task
                 depends_property.PREFIX = ''
                 depends_property.name = 'end'
-                depends_property.value = [task.issue.fields.resolutiondate]  # overwrite any links in JIRA
+                resolution_date = datetime.strptime(task.issue.fields.resolutiondate, '%Y-%m-%dT%H:%M:%S.%f%z')
+                resolution_date = resolution_date.replace(minute=0, second=0, microsecond=0, tzinfo=None)
+                depends_property.value = [resolution_date.isoformat(sep='-')]  # overwrite any links in JIRA
             elif assignees_to_tasks[assignee]:  # task with dependency
                 preceding_task = assignees_to_tasks[assignee][-1]
                 depends_property.append_value(to_identifier(preceding_task.key))
