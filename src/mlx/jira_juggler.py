@@ -312,6 +312,21 @@ task {id} "{description}" {{
                                     description=self.summary.replace('\"', '\\\"'),
                                     props=props)
 
+    def is_resolved(self):
+        """Returns whether the JIRA issue's status is resolved or closed
+
+        Returns:
+            bool: True if JIRA issue has been resolved; False otherwise
+        """
+        return self.issue is not None and self.issue.fields.status.name in ('Closed', 'Resolved')
+
+    @property
+    def resolved_at(self):
+        if self.is_resolved():
+            pass
+        else:
+            return None
+
 
 class JiraJuggler:
     """Class for task-juggling Jira results"""
@@ -499,7 +514,7 @@ class JiraJuggler:
         Returns:
             int: 0 for equal priority; -1 to prioritize a over b; 1 otherwise
         """
-        if a.issue.fields.resolution or b.issue.fields.resolution:
+        if a.is_resolved() or b.is_resolved():
             return 0
         if a.sprint_priority > b.sprint_priority:
             return -1
