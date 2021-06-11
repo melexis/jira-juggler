@@ -115,18 +115,30 @@ class JugglerTaskAllocate(JugglerTaskProperty):
     """Class for the allocation (assignee) of a juggler task"""
 
     DEFAULT_NAME = 'allocate'
-    DEFAULT_VALUE = 'not assigned'
+    DEFAULT_VALUE = '"not assigned"'
 
     def load_from_jira_issue(self, jira_issue):
-        """Loads the object with data from a Jira issue
+        """Loads the object with data from a Jira issue.
+
+        The last assignee in the Analyzed state of the Jira issue is prioritized over the current assignee,
+        which is the fallback value.
 
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        if hasattr(jira_issue.fields, 'assignee'):
-            self.value = jira_issue.fields.assignee.name
-        else:
-            self.value = self.DEFAULT_VALUE
+        assignee = ''
+        for change in jira_issue.changelog.histories:
+            for item in change.items:
+                if item.field.lower() == 'assignee':
+                    assignee = item.to
+                elif assignee and item.field.lower() == 'status' and item.toString.lower() == 'resolved':
+                    self.value = assignee
+
+        if not self.value or self.value == self.DEFAULT_VALUE:
+            if hasattr(jira_issue.fields, 'assignee'):
+                self.value = jira_issue.fields.assignee.name
+            else:
+                self.value = self.DEFAULT_VALUE
 
 
 class JugglerTaskEffort(JugglerTaskProperty):
@@ -372,7 +384,8 @@ class JiraJuggler:
         busy = True
         while busy:
             try:
-                issues = self.jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count)
+                issues = self.jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
+                                                       expand='changelog')
             except JIRAError:
                 logging.error('Invalid Jira query "%s"', self.query)
                 return None
