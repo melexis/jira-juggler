@@ -44,5 +44,8 @@ See help from python module:
 
     To properly include closed JIRA tickets, your `--query` should order by resolution date.
 
-    Example: `(resolution !=  Invalid OR resolution = Unresolved) ORDER BY resolutiondate ASC`
+    Example: `(resolution !=  Invalid OR resolution = Unresolved) ORDER BY resolutiondate ASC, rank ASC`
 
+.. note::
+
+    Timezone information from JIRA is ignored and should be set in `preamble.tjp`.
