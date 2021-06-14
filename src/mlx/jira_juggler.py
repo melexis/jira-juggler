@@ -164,8 +164,8 @@ class JugglerTaskEffort(JugglerTaskProperty):
             if estimated_time is not None:
                 remaining_time = jira_issue.fields.timeestimate
                 logged_time = jira_issue.fields.timespent
-                if jira_issue.fields.resolution:
-                    # closed ticket: prioritize Logged time over Estimated
+                if jira_issue.fields.status.name in ('Closed', 'Resolved'):
+                    # resolved ticket: prioritize Logged time over Estimated
                     val = logged_time if logged_time else estimated_time
                 else:
                     # open ticket prioritize Remaining time over Estimated
@@ -324,20 +324,22 @@ task {id} "{description}" {{
                                     description=self.summary.replace('\"', '\\\"'),
                                     props=props)
 
+    @property
     def is_resolved(self):
-        """Returns whether the JIRA issue's status is resolved or closed
-
-        Returns:
-            bool: True if JIRA issue has been resolved; False otherwise
-        """
+        """bool: True if JIRA issue has been resolved; False otherwise"""
         return self.issue is not None and self.issue.fields.status.name in ('Closed', 'Resolved')
 
     @property
     def resolved_at(self):
-        if self.is_resolved():
-            pass
-        else:
-            return None
+        """str: Date and time corresponding to the last transition to the Resolved status; empty when not resolved"""
+        if self.is_resolved:
+            for change in self.issue.changelog.histories:
+                for item in change.items[::-1]:
+                    if item.field.lower() == 'status' and item.toString.lower() == 'resolved':
+                        resolution_date = datetime.strptime(change.created, '%Y-%m-%dT%H:%M:%S.%f%z')
+                        resolution_date = resolution_date.replace(minute=0, second=0, microsecond=0, tzinfo=None)
+                        return resolution_date.isoformat(sep='-')
+        return ""
 
 
 class JiraJuggler:
@@ -426,10 +428,10 @@ class JiraJuggler:
         """Links task to preceding task with the same assignee.
 
         If the task has been resolved, 'end' is added instead not matter what, followed by the date and time on which
-        it's been closed.
+        it's been resolved.
 
         If it's the first task for a given assignee and it's not linked with 'depends on'/'is blocked by' through JIRA
-        and it's not closed, 'start ${now}' is added instead.
+        and it's not resolved, 'start ${now}' is added instead.
 
         Args:
             tasks (list): List of JugglerTask instances to modify
@@ -441,12 +443,10 @@ class JiraJuggler:
                 assignees_to_tasks[assignee] = []
 
             depends_property = task.properties['depends']
-            if task.issue.fields.resolution:  # closed task
+            if task.is_resolved:
                 depends_property.PREFIX = ''
                 depends_property.name = 'end'
-                resolution_date = datetime.strptime(task.issue.fields.resolutiondate, '%Y-%m-%dT%H:%M:%S.%f%z')
-                resolution_date = resolution_date.replace(minute=0, second=0, microsecond=0, tzinfo=None)
-                depends_property.value = [resolution_date.isoformat(sep='-')]  # overwrite any links in JIRA
+                depends_property.value = [task.resolved_at]  # overwrite any links in JIRA
             elif assignees_to_tasks[assignee]:  # task with dependency
                 preceding_task = assignees_to_tasks[assignee][-1]
                 depends_property.append_value(to_identifier(preceding_task.key))
@@ -527,7 +527,7 @@ class JiraJuggler:
         Returns:
             int: 0 for equal priority; -1 to prioritize a over b; 1 otherwise
         """
-        if a.is_resolved() or b.is_resolved():
+        if a.is_resolved or b.is_resolved:
             return 0
         if a.sprint_priority > b.sprint_priority:
             return -1
