@@ -64,7 +64,7 @@ def to_juggler_date(date):
 
 
 def calculate_weekends(date, workdays_passed, weeklymax):
-    """Calculates the number of weekends between the given date and the amount of weekdays to travel back in time.
+    """Calculates the number of weekends between the given date and the amount of workdays to travel back in time.
 
     The following assumptions are made: each workday starts at 9 a.m., has no break and is 8 hours long.
 
