@@ -8,7 +8,7 @@ import argparse
 import logging
 import re
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, time
 from functools import cmp_to_key
 from getpass import getpass
 
@@ -47,6 +47,45 @@ def to_identifier(key):
         str: Valid task-identifier based on given key
     """
     return key.replace('-', '_')
+
+
+def to_juggler_date(date):
+    """Converts given datetime object to a string that can be interpreted by TaskJuggler
+
+    The resolution is 60 minutes and timezone information is discarded.
+
+    Args:
+        date (datetime.datetime): Datetime object
+
+    Returns:
+        str: Date and time specification similar to the ISO 8601 date format but with '-' as separator
+    """
+    date_proper_resolution = date.replace(minute=0, second=0, microsecond=0, tzinfo=None)
+    return date_proper_resolution.isoformat(sep='-')
+
+
+def calculate_weekends(date, workdays_passed, weeklymax):
+    """Calculates the number of weekends between the given date and the amount of weekdays to travel back in time.
+
+    The following assumptions are made: each workday starts at 9 a.m., has no break and is 8 hours long.
+
+    Args:
+        date (datetime.datetime): Date and time specification to use as a starting point
+        workdays_passed (float): Number of workdays passed since the given date
+        weeklymax (float): Number of allocated workdays per week
+
+    Returns:
+        int: The number of weekends between the given date and the amount of weekdays that have passed since then
+    """
+    weekend_count = 0
+    workday_percentage = (date - datetime.combine(date.date(), time(hour=9))).seconds / JugglerTaskEffort.FACTOR
+    date_as_weekday = date.weekday() + workday_percentage
+    if date_as_weekday > weeklymax:
+        date_as_weekday = weeklymax
+    remaining_workdays_passed = workdays_passed - date_as_weekday
+    if remaining_workdays_passed > 0:
+        weekend_count += 1 + (remaining_workdays_passed // weeklymax)
+    return weekend_count
 
 
 class JugglerTaskProperty(ABC):
@@ -154,14 +193,15 @@ class JugglerTaskEffort(JugglerTaskProperty):
         if hasattr(jira_issue.fields, 'timeoriginalestimate'):
             estimated_time = jira_issue.fields.timeoriginalestimate
             if estimated_time is not None:
-                remaining_time = jira_issue.fields.timeestimate
-                logged_time = jira_issue.fields.timespent
+                logged_time = jira_issue.fields.timespent if jira_issue.fields.timespent else 0
                 if jira_issue.fields.status.name in ('Closed', 'Resolved'):
                     # resolved ticket: prioritize Logged time over Estimated
                     val = logged_time if logged_time else estimated_time
                 else:
                     # open ticket prioritize Remaining time over Estimated
-                    val = remaining_time if remaining_time else estimated_time
+                    remaining_time = jira_issue.fields.timeestimate if jira_issue.fields.timeestimate else 0
+                    revised_effort = logged_time + remaining_time
+                    val = revised_effort if revised_effort else estimated_time
                 self.value = (val / self.FACTOR)
             else:
                 self.value = 0
@@ -330,16 +370,26 @@ task {id} "{description}" {{
         return self.issue is not None and self.issue.fields.status.name in ('Closed', 'Resolved')
 
     @property
-    def resolved_at(self):
-        """str: Date and time corresponding to the last transition to the Resolved status; empty when not resolved"""
+    def resolved_at_repr(self):
+        """str: Representation of date and time with resolution of 1 hour corresponding to the last transition to the
+            Resolved status, ignoring timezone info; empty when not resolved
+        """
+        date = self.resolved_at_date
+        if date:
+            return to_juggler_date(date)
+        return ""
+
+    @property
+    def resolved_at_date(self):
+        """datetime.datetime: Date and time corresponding to the last transition to the Resolved status; None when not
+            resolved
+        """
         if self.is_resolved:
             for change in self.issue.changelog.histories:
                 for item in change.items[::-1]:
                     if item.field.lower() == 'status' and item.toString.lower() == 'resolved':
-                        resolution_date = datetime.strptime(change.created, '%Y-%m-%dT%H:%M:%S.%f%z')
-                        resolution_date = resolution_date.replace(minute=0, second=0, microsecond=0, tzinfo=None)
-                        return resolution_date.isoformat(sep='-')
-        return ""
+                        return datetime.strptime(change.created, '%Y-%m-%dT%H:%M:%S.%f%z')
+        return None
 
 
 class JiraJuggler:
@@ -371,7 +421,7 @@ class JiraJuggler:
         for task in list(tasks):
             task.validate(tasks)
 
-    def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name=''):
+    def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name='', **kwargs):
         """Loads issues from Jira
 
         Args:
@@ -404,8 +454,9 @@ class JiraJuggler:
         self.validate_tasks(tasks)
         if sprint_field_name:
             self.sort_tasks_on_sprint(tasks, sprint_field_name)
+        tasks.sort(key=cmp_to_key(self.compare_status))
         if depend_on_preceding:
-            self.link_to_preceding_task(tasks)
+            self.link_to_preceding_task(tasks, **kwargs)
         return tasks
 
     def juggle(self, output=None, **kwargs):
@@ -424,37 +475,47 @@ class JiraJuggler:
         return juggler_tasks
 
     @staticmethod
-    def link_to_preceding_task(tasks):
+    def link_to_preceding_task(tasks, weeklymax=5.0):
         """Links task to preceding task with the same assignee.
 
         If the task has been resolved, 'end' is added instead no matter what, followed by the date and time on which
         it's been resolved.
 
-        If it's the first task for a given assignee and it's not linked with 'depends on'/'is blocked by' through JIRA
-        and it's not resolved, 'start ${now}' is added instead.
+        If it's the first unresolved task for a given assignee and it's not linked with 'depends on'/'is blocked by'
+        through JIRA, 'start' is added instead followed by the date and hour on which the task has been started,
+        i.e. current time minus time spent.
 
         Args:
             tasks (list): List of JugglerTask instances to modify
+            weeklymax (float): Number of allocated workdays per week
         """
-        assignees_to_tasks = {}
+        now = datetime.now()
+        unresolved_tasks = {}
         for task in tasks:
             assignee = str(task.properties['allocate'])
-            if assignee not in assignees_to_tasks:
-                assignees_to_tasks[assignee] = []
+            if assignee not in unresolved_tasks:
+                unresolved_tasks[assignee] = []
 
             depends_property = task.properties['depends']
             if task.is_resolved:
                 depends_property.PREFIX = ''
                 depends_property.name = 'end'
-                depends_property.value = [task.resolved_at]  # overwrite any links in JIRA
-            elif assignees_to_tasks[assignee]:  # task with dependency
-                preceding_task = assignees_to_tasks[assignee][-1]
-                depends_property.append_value(to_identifier(preceding_task.key))
-            elif not depends_property.value:  # first task for assignee and it is open
-                depends_property.PREFIX = ''
-                depends_property.name = 'start'
-                depends_property.append_value('${now}')
-            assignees_to_tasks[assignee].append(task)
+                depends_property.value = [task.resolved_at_repr]  # overwrite any links in JIRA
+            else:
+                if unresolved_tasks[assignee]:  # task with dependency
+                    preceding_task = unresolved_tasks[assignee][-1]
+                    depends_property.append_value(to_identifier(preceding_task.key))
+                elif not depends_property.value:  # first unresolved task for assignee
+                    depends_property.PREFIX = ''
+                    depends_property.name = 'start'
+                    val = to_juggler_date(now)
+                    if task.issue.fields.timespent:
+                        days_spent = task.issue.fields.timespent // 3600 / 8
+                        weekends = calculate_weekends(now, days_spent, weeklymax)
+                        days_per_weekend = min(2, 7 - weeklymax)
+                        val = f"%{{{val} - {days_spent + weekends * days_per_weekend}d}}"
+                    depends_property.append_value(val)
+                unresolved_tasks[assignee].append(task)
 
     def sort_tasks_on_sprint(self, tasks, sprint_field_name):
         """Sorts given list of tasks based on the values of the field with the given name.
@@ -527,8 +588,6 @@ class JiraJuggler:
         Returns:
             int: 0 for equal priority; -1 to prioritize a over b; 1 otherwise
         """
-        if a.is_resolved or b.is_resolved:
-            return 0
         if a.sprint_priority > b.sprint_priority:
             return -1
         if a.sprint_priority < b.sprint_priority:
@@ -548,6 +607,18 @@ class JiraJuggler:
             return -1
         return 1
 
+    @staticmethod
+    def compare_status(a, b):
+        if a.is_resolved and not b.is_resolved:
+            return -1
+        if b.is_resolved and not a.is_resolved:
+            return 1
+        if a.is_resolved and b.is_resolved:
+            if a.resolved_at_date < b.resolved_at_date:
+                return -1
+            return 1
+        return 0
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -566,6 +637,9 @@ def main():
     parser.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
                         help="Sort unresolved tasks by using field name that stores sprint(s), e.g. customfield_10851, "
                              "in addition to the original order")
+    parser.add_argument('-w', '--weeklymax', default=5.0,
+                        help="Number of allocated workdays per week used to approximate "
+                             "start time of unresolved tasks with logged time")
     args = parser.parse_args()
 
     set_logging_level(args.loglevel)
@@ -574,7 +648,12 @@ def main():
 
     JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query)
 
-    JUGGLER.juggle(args.output, depend_on_preceding=args.depend_on_preceding, sprint_field_name=args.sprint_field_name)
+    JUGGLER.juggle(
+        args.output,
+        depend_on_preceding=args.depend_on_preceding,
+        sprint_field_name=args.sprint_field_name,
+        weeklymax=args.weeklymax,
+    )
     return 0
 
 
