@@ -52,16 +52,15 @@ def to_identifier(key):
 def to_juggler_date(date):
     """Converts given datetime object to a string that can be interpreted by TaskJuggler
 
-    The resolution is 60 minutes and timezone information is discarded.
+    The resolution is 60 minutes.
 
     Args:
         date (datetime.datetime): Datetime object
 
     Returns:
-        str: Date and time specification similar to the ISO 8601 date format but with '-' as separator
+        str: String representing the date and time in TaskJuggler's format
     """
-    date_proper_resolution = date.replace(minute=0, second=0, microsecond=0, tzinfo=None)
-    return date_proper_resolution.isoformat(sep='-')
+    return date.strftime('%Y-%m-%d-%H:00%z')
 
 
 def calculate_weekends(date, workdays_passed, weeklymax):
@@ -388,7 +387,7 @@ task {id} "{description}" {{
             for change in self.issue.changelog.histories:
                 for item in change.items[::-1]:
                     if item.field.lower() == 'status' and item.toString.lower() == 'resolved':
-                        return datetime.strptime(change.created, '%Y-%m-%dT%H:%M:%S.%f%z')
+                        return parser.isoparse(change.created)
         return None
 
 
@@ -475,7 +474,7 @@ class JiraJuggler:
         return juggler_tasks
 
     @staticmethod
-    def link_to_preceding_task(tasks, weeklymax=5.0):
+    def link_to_preceding_task(tasks, weeklymax=5.0, current_date=datetime.now()):
         """Links task to preceding task with the same assignee.
 
         If the task has been resolved, 'end' is added instead no matter what, followed by the date and time on which
@@ -488,8 +487,8 @@ class JiraJuggler:
         Args:
             tasks (list): List of JugglerTask instances to modify
             weeklymax (float): Number of allocated workdays per week
+            current_date (datetime.datetime): Offset-naive datetime to treat as the current date
         """
-        now = datetime.now()
         unresolved_tasks = {}
         for task in tasks:
             assignee = str(task.properties['allocate'])
@@ -508,10 +507,10 @@ class JiraJuggler:
                 elif not depends_property.value:  # first unresolved task for assignee
                     depends_property.PREFIX = ''
                     depends_property.name = 'start'
-                    val = to_juggler_date(now)
+                    val = to_juggler_date(current_date)
                     if task.issue.fields.timespent:
                         days_spent = task.issue.fields.timespent // 3600 / 8
-                        weekends = calculate_weekends(now, days_spent, weeklymax)
+                        weekends = calculate_weekends(current_date, days_spent, weeklymax)
                         days_per_weekend = min(2, 7 - weeklymax)
                         val = f"%{{{val} - {days_spent + weekends * days_per_weekend}d}}"
                     depends_property.append_value(val)
@@ -621,26 +620,29 @@ class JiraJuggler:
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--loglevel', default=DEFAULT_LOGLEVEL,
+    argpar = argparse.ArgumentParser()
+    argpar.add_argument('-l', '--loglevel', default=DEFAULT_LOGLEVEL,
                         help='Level for logging (strings from logging python package)')
-    parser.add_argument('-j', '--jira', dest='url', default=DEFAULT_JIRA_URL,
+    argpar.add_argument('-j', '--jira', dest='url', default=DEFAULT_JIRA_URL,
                         help='URL to JIRA server')
-    parser.add_argument('-u', '--username', required=True,
+    argpar.add_argument('-u', '--username', required=True,
                         help='Your username on JIRA server')
-    parser.add_argument('-q', '--query', required=True,
+    argpar.add_argument('-q', '--query', required=True,
                         help='Query to perform on JIRA server')
-    parser.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
+    argpar.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
                         help='Output .tjp file for task-juggler')
-    parser.add_argument('-D', '--depend-on-preceding', action='store_true',
+    argpar.add_argument('-D', '--depend-on-preceding', action='store_true',
                         help='Flag to let tasks depend on the preceding task with the same assignee')
-    parser.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
-                        help="Sort unresolved tasks by using field name that stores sprint(s), e.g. customfield_10851, "
-                             "in addition to the original order")
-    parser.add_argument('-w', '--weeklymax', default=5.0,
-                        help="Number of allocated workdays per week used to approximate "
-                             "start time of unresolved tasks with logged time")
-    args = parser.parse_args()
+    argpar.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
+                        help='Sort unresolved tasks by using field name that stores sprint(s), e.g. customfield_10851, '
+                             'in addition to the original order')
+    argpar.add_argument('-w', '--weeklymax', default=5.0,
+                        help='Number of allocated workdays per week used to approximate '
+                             'start time of unresolved tasks with logged time')
+    argpar.add_argument('-c', '--current-date', default=datetime.now(), type=parser.isoparse,
+                        help='Specify the offset-naive date to use for calculation as current date. If no value is '
+                             'specified, the current value of the system clock is used.')
+    args = argpar.parse_args()
 
     set_logging_level(args.loglevel)
 
@@ -653,6 +655,7 @@ def main():
         depend_on_preceding=args.depend_on_preceding,
         sprint_field_name=args.sprint_field_name,
         weeklymax=args.weeklymax,
+        current_date=args.current_date
     )
     return 0
 
