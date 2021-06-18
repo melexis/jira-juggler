@@ -156,13 +156,16 @@ class JugglerTaskAllocate(JugglerTaskProperty):
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        assignee = ''
+        is_resolved = False
         for change in jira_issue.changelog.histories:
             for item in change.items:
                 if item.field.lower() == 'assignee':
-                    assignee = item.to
-                elif assignee and item.field.lower() == 'status' and item.toString.lower() == 'resolved':
-                    self.value = assignee
+                    if is_resolved:
+                        self.value = getattr(item, 'from')
+                    elif not self.value:
+                        self.value = item.to
+                elif item.field.lower() == 'status':
+                    is_resolved = item.toString.lower() == 'resolved'
 
         if not self.value or self.value == self.DEFAULT_VALUE:
             if hasattr(jira_issue.fields, 'assignee'):
