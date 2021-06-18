@@ -70,8 +70,8 @@ class TestJiraJuggler(unittest.TestCase):
 
     JIRA_JSON_ESTIMATE_TEMPLATE = '''
             "timeoriginalestimate": {estimate},
-            "timespent": 0,
-            "timeestimate": 0
+            "timespent": null,
+            "timeestimate": null
     '''
 
     JIRA_JSON_STATUS_TEMPLATE = '''
