@@ -39,13 +39,3 @@ See help from python module:
     The generated tj3-file, can at the moment not be parsed by TaskJuggler directly. Only the tasks are exported
     to the tj3-file. The list of tasks needs to be embedded in a complete tj3-file. See the
     `TaskJuggler website <http://taskjuggler.org/>`_ for more details.
-
-.. note::
-
-    To properly include closed JIRA tickets, your `--query` should order by resolution date.
-
-    Example: `(resolution !=  Invalid OR resolution = Unresolved) ORDER BY resolutiondate ASC, rank ASC`
-
-.. note::
-
-    Timezone information from JIRA is ignored and should be set in `preamble.tjp`.
