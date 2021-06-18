@@ -60,7 +60,7 @@ def to_juggler_date(date):
     Returns:
         str: String representing the date and time in TaskJuggler's format
     """
-    return date.strftime('%Y-%m-%d-%H:00%z')
+    return date.strftime('%Y-%m-%d-%H:00-%z').rstrip('-')
 
 
 def calculate_weekends(date, workdays_passed, weeklymax):
