@@ -69,7 +69,15 @@ class TestJiraJuggler(unittest.TestCase):
     '''
 
     JIRA_JSON_ESTIMATE_TEMPLATE = '''
-            "timeestimate": {estimate}
+            "timeoriginalestimate": {estimate},
+            "timespent": 0,
+            "timeestimate": 0
+    '''
+
+    JIRA_JSON_STATUS_TEMPLATE = '''
+            "status": {{
+                "name": "{status}"
+            }}
     '''
 
     JIRA_JSON_LINKS_TEMPLATE = '''
@@ -91,6 +99,8 @@ class TestJiraJuggler(unittest.TestCase):
 
     JIRA_JSON_ISSUE_TEMPLATE = '''{{
         "key": "{key}",
+        "changelog": {changelog},
+
         "fields": {{
             "summary": "{summary}"
             {properties}
@@ -110,7 +120,7 @@ class TestJiraJuggler(unittest.TestCase):
 
         jira_mock_object.search_issues.return_value = []
         juggler.juggle()
-        jira_mock_object.search_issues.assert_called_once_with(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0)
+        jira_mock_object.search_issues.assert_called_once_with(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog')
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_single_task_happy(self, jira_mock):
@@ -127,8 +137,8 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              self.DEPENDS1)
                                                        ], []]
         issues = juggler.juggle()
-        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
-                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1)])
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1, expand='changelog')])
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
@@ -151,8 +161,8 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              self.SUMMARY1)
                                                        ], []]
         issues = juggler.juggle()
-        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
-                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1)])
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1, expand='changelog')])
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
@@ -171,8 +181,8 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              estimate=1)
                                                        ], []]
         issues = juggler.juggle()
-        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
-                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1)])
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1, expand='changelog')])
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
@@ -191,8 +201,8 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              depends=['non-existing-key-of-issue'])
                                                        ], []]
         issues = juggler.juggle()
-        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
-                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1)])
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1, expand='changelog')])
         self.assertEqual(1, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
@@ -218,8 +228,8 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              self.DEPENDS2),
                                                        ], []]
         issues = juggler.juggle()
-        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
-                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=2)])
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=2, expand='changelog')])
         self.assertEqual(2, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
@@ -257,8 +267,8 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              self.DEPENDS3),
                                                        ], []]
         issues = juggler.juggle()
-        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0),
-                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=3)])
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=3, expand='changelog')])
         self.assertEqual(3, len(issues))
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
@@ -276,7 +286,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].value)
         self.assertEqual(self.DEPENDS3, issues[2].properties['depends'].value)
 
-    def _mock_jira_issue(self, key, summary, assignee=None, estimate=None, depends=[]):
+    def _mock_jira_issue(self, key, summary, assignee=None, estimate=None, depends=[], changelog=[], status="Open"):
         '''
         Helper function to create a mocked Jira issue
 
@@ -290,7 +300,7 @@ class TestJiraJuggler(unittest.TestCase):
         Returns:
             object: Mocked Jira Issue object
         '''
-        props = ''
+        props = ', ' + self.JIRA_JSON_STATUS_TEMPLATE.format(status=status)
         if assignee:
             props += ', '
             props += self.JIRA_JSON_ASSIGNEE_TEMPLATE.format(assignee=assignee)
@@ -305,8 +315,10 @@ class TestJiraJuggler(unittest.TestCase):
                     deps += ', '
                 deps += self.JIRA_JSON_DEPENDS_TEMPLATE.format(depends=dep)
             props += self.JIRA_JSON_LINKS_TEMPLATE.format(links=deps)
+        changelog = '{"histories": []}'
 
         data = self.JIRA_JSON_ISSUE_TEMPLATE.format(key=key,
                                                     summary=summary,
-                                                    properties=props)
+                                                    properties=props,
+                                                    changelog=changelog)
         return json.loads(data, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
