@@ -156,19 +156,20 @@ class JugglerTaskAllocate(JugglerTaskProperty):
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        before_resolved = False
-        for change in reversed(jira_issue.changelog.histories):  # travel back in time
-            for item in change.items:
-                if item.field.lower() == 'assignee':
-                    if not before_resolved:
-                        self.value = getattr(item, 'from')
-                    else:
-                        self.value = item.to
-                        return  # got last assignee before transition to Resolved status
-                elif item.field.lower() == 'status' and item.toString.lower() == 'resolved':
-                    before_resolved = True
-                    if self.value and self.value != self.DEFAULT_VALUE:
-                        return  # assignee was changed after transition to Resolved status
+        if jira_issue.fields.status.name in ('Closed', 'Resolved'):
+            before_resolved = False
+            for change in reversed(jira_issue.changelog.histories):  # travel back in time
+                for item in change.items:
+                    if item.field.lower() == 'assignee':
+                        if not before_resolved:
+                            self.value = getattr(item, 'from')
+                        else:
+                            self.value = item.to
+                            return  # got last assignee before transition to Resolved status
+                    elif item.field.lower() == 'status' and item.toString.lower() == 'resolved':
+                        before_resolved = True
+                        if self.value and self.value != self.DEFAULT_VALUE:
+                            return  # assignee was changed after transition to Resolved status
 
         if not self.value or self.value == self.DEFAULT_VALUE:
             if hasattr(jira_issue.fields, 'assignee'):
