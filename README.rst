@@ -39,3 +39,16 @@ See help from python module:
     The generated tj3-file, can at the moment not be parsed by TaskJuggler directly. Only the tasks are exported
     to the tj3-file. The list of tasks needs to be embedded in a complete tj3-file. See the
     `TaskJuggler website <http://taskjuggler.org/>`_ for more details.
+
+.. note::
+
+    Unresolved tasks with logged time, i.e. time spent, will have their 'start' property set to the set current date
+    and time minus the logged time, calculated with 8 hours per workday and a default of 5 allocated workdays per week
+    with the day(s) off ending on Sunday. The latter number can be changed.
+
+-----------
+Limitations
+-----------
+
+When two tasks end on the same date and time, TaskJuggler won't necessarily preserve the order in which the tasks
+appear in jira-juggler's output.
