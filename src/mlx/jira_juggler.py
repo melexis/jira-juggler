@@ -643,7 +643,7 @@ def main():
     argpar.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
                         help='Sort unresolved tasks by using field name that stores sprint(s), e.g. customfield_10851, '
                              'in addition to the original order')
-    argpar.add_argument('-w', '--weeklymax', default=5.0,
+    argpar.add_argument('-w', '--weeklymax', default=5.0, type=float,
                         help='Number of allocated workdays per week used to approximate '
                              'start time of unresolved tasks with logged time')
     argpar.add_argument('-c', '--current-date', default=datetime.now(), type=parser.isoparse,
