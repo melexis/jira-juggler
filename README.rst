@@ -34,6 +34,11 @@ See help from python module:
 
     jira-juggler -h
 
+.. note::
+
+    To include resolved **and** unresolved tasks while excluding invalid tasks, you can add the following logic to the
+    value for the `--query` argument: `(resolution !=  Invalid OR resolution = Unresolved)`.
+
 .. warning::
 
     The generated tj3-file, can at the moment not be parsed by TaskJuggler directly. Only the tasks are exported
