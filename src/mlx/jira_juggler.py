@@ -199,15 +199,15 @@ class JugglerTaskEffort(JugglerTaskProperty):
         if hasattr(jira_issue.fields, 'timeoriginalestimate'):
             estimated_time = jira_issue.fields.timeoriginalestimate
             if estimated_time is not None:
+                val = estimated_time
                 logged_time = jira_issue.fields.timespent if jira_issue.fields.timespent else 0
                 if jira_issue.fields.status.name in ('Closed', 'Resolved'):
                     # resolved ticket: prioritize Logged time over Estimated
-                    val = logged_time if logged_time else estimated_time
-                else:
+                    if logged_time:
+                        val = logged_time
+                elif jira_issue.fields.timeestimate:
                     # open ticket prioritize Remaining time over Estimated
-                    remaining_time = jira_issue.fields.timeestimate if jira_issue.fields.timeestimate else 0
-                    revised_effort = logged_time + remaining_time
-                    val = revised_effort if revised_effort else estimated_time
+                    val = jira_issue.fields.timeestimate
                 self.value = (val / self.FACTOR)
             else:
                 self.value = 0
@@ -489,9 +489,9 @@ class JiraJuggler:
 
         If it's the first unresolved task for a given assignee and it's not linked with 'depends on'/'is blocked by'
         through JIRA, 'start' is added instead followed by the date and hour on which the task has been started,
-        i.e. current time minus time spent. If it's not the first, the effort estimate gets changed from 'Remaining +
-        Logged' time to 'Remaining' time since parallellism is not supported by TaskJuggler and this approach results in
-        a more accurate forecast.
+        i.e. current time minus time spent. For the other unresolved tasks, the effort estimate is 'Remaining' time
+        only instead of 'Remaining + Logged' time since parallellism is not supported by
+        TaskJuggler and this approach results in a more accurate forecast.
 
         Args:
             tasks (list): List of JugglerTask instances to modify
@@ -513,15 +513,13 @@ class JiraJuggler:
                 if unresolved_tasks[assignee]:  # task with dependency
                     preceding_task = unresolved_tasks[assignee][-1]
                     depends_property.append_value(to_identifier(preceding_task.key))
-                    # overwrite effort estimate with Remaining time only (parallellism is not supported)
-                    if task.issue.fields.timeestimate:
-                        effort_property = task.properties['effort']
-                        effort_property.value = task.issue.fields.timeestimate / JugglerTaskEffort.FACTOR
                 elif not depends_property.value:  # first unresolved task for assignee
                     depends_property.PREFIX = ''
                     depends_property.name = 'start'
                     val = to_juggler_date(current_date)
                     if task.issue.fields.timespent:
+                        effort_property = task.properties['effort']
+                        effort_property.value += task.issue.fields.timespent / JugglerTaskEffort.FACTOR
                         days_spent = task.issue.fields.timespent // 3600 / 8
                         weekends = calculate_weekends(current_date, days_spent, weeklymax)
                         days_per_weekend = min(2, 7 - weeklymax)
