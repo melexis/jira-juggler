@@ -199,19 +199,18 @@ class JugglerTaskEffort(JugglerTaskProperty):
         if hasattr(jira_issue.fields, 'timeoriginalestimate'):
             estimated_time = jira_issue.fields.timeoriginalestimate
             if estimated_time is not None:
-                val = estimated_time
+                self.value = estimated_time / self.FACTOR
                 logged_time = jira_issue.fields.timespent if jira_issue.fields.timespent else 0
                 if jira_issue.fields.status.name in ('Closed', 'Resolved'):
                     # resolved ticket: prioritize Logged time over Estimated
                     if logged_time:
-                        val = logged_time
+                        self.value = logged_time / self.FACTOR
                 elif jira_issue.fields.timeestimate is not None:
                     # open ticket prioritize Remaining time over Estimated
                     if jira_issue.fields.timeestimate:
-                        val = jira_issue.fields.timeestimate
+                        self.value = jira_issue.fields.timeestimate / self.FACTOR
                     else:
-                        val = 0.125
-                self.value = (val / self.FACTOR)
+                        self.value = self.MINIMAL_VALUE
             else:
                 self.value = 0
         else:
