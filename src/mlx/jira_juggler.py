@@ -489,7 +489,9 @@ class JiraJuggler:
 
         If it's the first unresolved task for a given assignee and it's not linked with 'depends on'/'is blocked by'
         through JIRA, 'start' is added instead followed by the date and hour on which the task has been started,
-        i.e. current time minus time spent.
+        i.e. current time minus time spent. If it's not the first, the effort estimate gets changed from 'Remaining +
+        Logged' time to 'Remaining' time since parallellism is not supported by TaskJuggler and this approach results in
+        a more accurate forecast.
 
         Args:
             tasks (list): List of JugglerTask instances to modify
@@ -511,6 +513,10 @@ class JiraJuggler:
                 if unresolved_tasks[assignee]:  # task with dependency
                     preceding_task = unresolved_tasks[assignee][-1]
                     depends_property.append_value(to_identifier(preceding_task.key))
+                    # overwrite effort estimate with Remaining time only (parallellism is not supported)
+                    if task.issue.fields.timeestimate:
+                        effort_property = task.properties['effort']
+                        effort_property.value = task.issue.fields.timeestimate / JugglerTaskEffort.FACTOR
                 elif not depends_property.value:  # first unresolved task for assignee
                     depends_property.PREFIX = ''
                     depends_property.name = 'start'
