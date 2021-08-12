@@ -3,6 +3,9 @@
 
 import json
 from collections import namedtuple
+from datetime import datetime
+
+from parameterized import parameterized
 
 import unittest
 
@@ -322,3 +325,20 @@ class TestJiraJuggler(unittest.TestCase):
                                                     properties=props,
                                                     changelog=changelog)
         return json.loads(data, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+
+    @parameterized.expand([
+        ("2021-08-15-11:00", 10, 5, 2),
+        ("2021-08-22-11:00", 10, 5, 2),
+        ("2021-08-23-11:00", 10, 5, 2),
+        ("2021-08-23-09:00", 5, 5.0, 2),
+        ("2021-08-23-09:01", 5, 5.0, 1),
+        ("2021-08-23-13:00", 5.5, 5.0, 2),
+        ("2021-08-23-13:01", 5.5, 5.0, 1),
+        ("2021-08-23-13:00", 0.2, 0.1, 2),
+        ("2021-08-23-10:00", 0, 0, 0),
+        ("2021-08-14-10:00", 0, 0, 0),
+    ])
+    def test_calculate_weekends(self, date_str, workdays_passed, weeklymax, ref_output):
+        date = datetime.strptime(date_str, '%Y-%m-%d-%H:%M')
+        output = dut.calculate_weekends(date, workdays_passed, weeklymax)
+        self.assertEqual(output, ref_output)
