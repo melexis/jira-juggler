@@ -664,7 +664,7 @@ def main():
     JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query)
 
     JUGGLER.juggle(
-        args.output,
+        output=args.output,
         depend_on_preceding=args.depend_on_preceding,
         sprint_field_name=args.sprint_field_name,
         weeklymax=args.weeklymax,
