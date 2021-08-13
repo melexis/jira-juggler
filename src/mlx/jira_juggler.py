@@ -162,7 +162,7 @@ class JugglerTaskAllocate(JugglerTaskProperty):
                 for item in change.items:
                     if item.field.lower() == 'assignee':
                         if not before_resolved:
-                            self.value = getattr(item, 'from')
+                            self.value = getattr(item, 'from', None)
                         else:
                             self.value = item.to
                             return  # got last assignee before transition to Resolved status
