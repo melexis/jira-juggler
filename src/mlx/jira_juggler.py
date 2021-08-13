@@ -486,8 +486,8 @@ class JiraJuggler:
     def link_to_preceding_task(tasks, weeklymax=5.0, current_date=datetime.now()):
         """Links task to preceding task with the same assignee.
 
-        If the task has been resolved, 'end' is added instead no matter what, followed by the date and time on which
-        it's been resolved.
+        If the task has been resolved, 'end' is added instead of 'depends' no matter what, followed by the
+        date and time on which it's been resolved.
 
         If it's the first unresolved task for a given assignee and it's not linked with 'depends on'/'is blocked by'
         through JIRA, 'start' is added instead followed by the date and hour on which the task has been started,
