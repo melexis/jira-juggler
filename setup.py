@@ -20,7 +20,7 @@ setup(
     package_dir={'': 'src'},
     entry_points={'console_scripts': ['jira-juggler = mlx.jira_juggler:entrypoint']},
     include_package_data=True,
-    install_requires=['jira', 'python-dateutil>=2.8.0,<3.*', 'natsort>=7.1.0,<8.*'],
+    install_requires=['jira', 'python-dateutil>=2.8.0,<3.*', 'natsort>=7.1.0,<8.*', 'python-decouple'],
     setup_requires=['setuptools_scm'],
     namespace_packages=['mlx'],
     classifiers=[
