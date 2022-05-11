@@ -36,7 +36,7 @@ See help from python module:
 
 By default, the following endpoint for the JIRA API is used: *https://jira.melexis.com/jira*.
 The script will ask you to input your email address (or username) and API token (or password). These three
-variables can be configured by setting them in a *.env* file. This *.env* file should be located in the directory where
+variables can be configured by setting them in a *.env* file. This *.env* file shall be located in the directory where
 pip has installed the package. You can find an example configuration in *.env.example*.
 
 .. note::
