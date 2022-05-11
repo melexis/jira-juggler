@@ -426,14 +426,15 @@ task {id} "{description}" {{
 class JiraJuggler:
     """Class for task-juggling Jira results"""
 
-    def __init__(self, query):
+    def __init__(self, endpoint, user, token, query):
         """Constructs a JIRA juggler object
 
         Args:
-            query (str): The Query to run on JIRA server
+            endpoint (str): Endpoint for the Jira Cloud (or Server)
+            user (str): Email address (or username)
+            token (str): API token (or password)
+            query (str): The query to run
         """
-        user, token = fetch_credentials()
-        endpoint = config('JIRA_API_ENDPOINT', default=DEFAULT_JIRA_URL)
         logging.info('Jira endpoint: %s', endpoint)
 
         self.jirahandle = JIRA(endpoint, basic_auth=(user, token))
@@ -677,7 +678,9 @@ def main():
 
     set_logging_level(args.loglevel)
 
-    JUGGLER = JiraJuggler(args.query)
+    user, token = fetch_credentials()
+    endpoint = config('JIRA_API_ENDPOINT', default=DEFAULT_JIRA_URL)
+    JUGGLER = JiraJuggler(endpoint, user, token, args.query)
 
     JUGGLER.juggle(
         output=args.output,
