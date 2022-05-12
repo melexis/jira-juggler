@@ -13,6 +13,7 @@ from functools import cmp_to_key
 from getpass import getpass
 
 from dateutil import parser
+from decouple import config
 from jira import JIRA, JIRAError
 from natsort import natsorted, ns
 
@@ -23,6 +24,28 @@ DEFAULT_OUTPUT = 'jira_export.tjp'
 JIRA_PAGE_SIZE = 50
 
 TAB = ' ' * 4
+
+
+def fetch_credentials():
+    """ Fetches the credentials from the .env file by default or, alternatively, from the user's input
+
+    Returns:
+        str: email address or username
+        str: API token or password
+    """
+    username = config('JIRA_USERNAME', default='')
+    api_token = config('JIRA_API_TOKEN', default='')
+    if not username:
+        username = input('JIRA email address (or username): ')
+    if not api_token:
+        password = config('JIRA_PASSWORD', default='')
+        if password:
+            logging.warning('Basic authentication with a JIRA password may be deprecated. '
+                            'Consider defining an API token as environment variable JIRA_API_TOKEN instead.')
+            return username, password
+        else:
+            api_token = getpass(f'JIRA API token (or password) for {username}: ')
+    return username, api_token
 
 
 def set_logging_level(loglevel):
@@ -403,18 +426,18 @@ task {id} "{description}" {{
 class JiraJuggler:
     """Class for task-juggling Jira results"""
 
-    def __init__(self, url, user, passwd, query):
+    def __init__(self, endpoint, user, token, query):
         """Constructs a JIRA juggler object
 
         Args:
-            url (str): URL to the JIRA server
-            user (str): Username on JIRA server
-            passwd (str): Password of username on JIRA server
-            query (str): The Query to run on JIRA server
+            endpoint (str): Endpoint for the Jira Cloud (or Server)
+            user (str): Email address (or username)
+            token (str): API token (or password)
+            query (str): The query to run
         """
-        logging.info('Jira server: %s', url)
+        logging.info('Jira endpoint: %s', endpoint)
 
-        self.jirahandle = JIRA(url, basic_auth=(user, passwd))
+        self.jirahandle = JIRA(endpoint, basic_auth=(user, token))
         logging.info('Query: %s', query)
         self.query = query
         self.issue_count = 0
@@ -636,10 +659,6 @@ def main():
     argpar = argparse.ArgumentParser()
     argpar.add_argument('-l', '--loglevel', default=DEFAULT_LOGLEVEL,
                         help='Level for logging (strings from logging python package)')
-    argpar.add_argument('-j', '--jira', dest='url', default=DEFAULT_JIRA_URL,
-                        help='URL to JIRA server')
-    argpar.add_argument('-u', '--username', required=True,
-                        help='Your username on JIRA server')
     argpar.add_argument('-q', '--query', required=True,
                         help='Query to perform on JIRA server')
     argpar.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
@@ -659,9 +678,9 @@ def main():
 
     set_logging_level(args.loglevel)
 
-    PASSWORD = getpass('Enter JIRA password for {user}: '.format(user=args.username))
-
-    JUGGLER = JiraJuggler(args.url, args.username, PASSWORD, args.query)
+    user, token = fetch_credentials()
+    endpoint = config('JIRA_API_ENDPOINT', default=DEFAULT_JIRA_URL)
+    JUGGLER = JiraJuggler(endpoint, user, token, args.query)
 
     JUGGLER.juggle(
         output=args.output,
