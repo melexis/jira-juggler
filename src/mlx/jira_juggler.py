@@ -188,8 +188,8 @@ class JugglerTaskAllocate(JugglerTaskProperty):
                             self.value = getattr(item, 'from', None)
                         else:
                             self.value = item.to
-                            return  # got last assignee before transition to Resolved status
-                    elif item.field.lower() == 'status' and item.toString.lower() == 'resolved':
+                            return  # got last assignee before transition to Approved/Resolved status
+                    elif item.field.lower() == 'status' and item.toString.lower() in ('approved', 'resolved'):
                         before_resolved = True
                         if self.value and self.value != self.DEFAULT_VALUE:
                             return  # assignee was changed after transition to Resolved status
@@ -397,8 +397,8 @@ task {id} "{description}" {{
 
     @property
     def is_resolved(self):
-        """bool: True if JIRA issue has been resolved; False otherwise"""
-        return self.issue is not None and self.issue.fields.status.name in ('Closed', 'Resolved')
+        """bool: True if JIRA issue has been approved/resolved/closed; False otherwise"""
+        return self.issue is not None and self.issue.fields.status.name in ('Approved', 'Resolved', 'Closed')
 
     @property
     def resolved_at_repr(self):
