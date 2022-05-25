@@ -24,6 +24,7 @@ DEFAULT_OUTPUT = 'jira_export.tjp'
 JIRA_PAGE_SIZE = 50
 
 TAB = ' ' * 4
+id_to_username_mapping = {}
 
 
 def fetch_credentials():
@@ -110,6 +111,15 @@ def calculate_weekends(date, workdays_passed, weeklymax):
     return weekend_count
 
 
+def to_username(value):
+    if isinstance(value, str) and len(value) >= 24:
+            if value not in id_to_username_mapping:
+                user = jirahandle.user(value)
+                id_to_username_mapping[value] = user.emailAddress.split('@')[0]
+            return id_to_username_mapping[value]
+    return value
+
+
 class JugglerTaskProperty(ABC):
     """Class for a property of a Task Juggler"""
 
@@ -185,11 +195,11 @@ class JugglerTaskAllocate(JugglerTaskProperty):
                 for item in change.items:
                     if item.field.lower() == 'assignee':
                         if not before_resolved:
-                            self.value = getattr(item, 'from', None)
+                            self.value = to_username(getattr(item, 'from', None))
                         else:
-                            self.value = item.to
+                            self.value = to_username(item.to)
                             return  # got last assignee before transition to Closed/Resolved status
-                    elif item.field.lower() == 'status' and item.toString.lower() in ('closed', 'resolved'):
+                    elif item.field.lower() == 'status' and item.toString.lower() == 'resolved':
                         before_resolved = True
                         if self.value and self.value != self.DEFAULT_VALUE:
                             return  # assignee was changed after transition to Closed/Resolved status
@@ -440,7 +450,8 @@ class JiraJuggler:
         """
         logging.info('Jira endpoint: %s', endpoint)
 
-        self.jirahandle = JIRA(endpoint, basic_auth=(user, token))
+        global jirahandle
+        jirahandle = JIRA(endpoint, basic_auth=(user, token))
         logging.info('Query: %s', query)
         self.query = query
         self.issue_count = 0
@@ -470,7 +481,7 @@ class JiraJuggler:
         busy = True
         while busy:
             try:
-                issues = self.jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
+                issues = jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
                                                        expand='changelog')
             except JIRAError:
                 logging.error('Invalid Jira query "%s"', self.query)
@@ -580,14 +591,27 @@ class JiraJuggler:
                 if isinstance(values, str):
                     values = [values]
                 for sprint_info in values:
-                    state_match = re.search("state=({})".format("|".join(priorities)), sprint_info)
-                    if state_match:
-                        state = state_match.group(1)
-                        prio = priorities[state]
-                        if prio > task.sprint_priority:
-                            task.sprint_name = re.search("name=(.+?),", sprint_info).group(1)
-                            task.sprint_priority = prio
-                            task.sprint_start_date = self.extract_start_date(sprint_info, task.issue.key)
+                    state = ""
+                    if isinstance(sprint_info, (str, bytes)):  # Jira Server
+                        state_match = re.search("state=({})".format("|".join(priorities)), sprint_info)
+                        if state_match:
+                            state = state_match.group(1)
+                            prio = priorities[state]
+                            if prio > task.sprint_priority:
+                                task.sprint_name = re.search("name=(.+?),", sprint_info).group(1)
+                                task.sprint_priority = prio
+                                task.sprint_start_date = self.extract_start_date(sprint_info, task.issue.key)
+                    else:  # Jira Cloud
+                        state = sprint_info.state.upper()
+                        if state in priorities:
+                            prio = priorities[state]
+                            if prio > task.sprint_priority:
+                                task.sprint_name = sprint_info.name
+                                task.sprint_priority = prio
+                                if hasattr(sprint_info, 'startDate'):
+                                    task.sprint_start_date = parser.parse(sprint_info.startDate)
+                                else:
+                                    task.sprint_start_date = datetime.now()
         logging.debug("Sorting tasks based on sprint information...")
         tasks.sort(key=cmp_to_key(self.compare_sprint_priority))
 
