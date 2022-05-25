@@ -583,7 +583,7 @@ class JiraJuggler:
         for task in tasks:
             task.sprint_name = ""
             task.sprint_priority = 0
-            task.sprint_start_date = None
+            task.sprint_start_date = datetime.now()
             if not task.issue:
                 continue
             values = getattr(task.issue.fields, sprint_field_name, None)
@@ -610,8 +610,6 @@ class JiraJuggler:
                                 task.sprint_priority = prio
                                 if hasattr(sprint_info, 'startDate'):
                                     task.sprint_start_date = parser.parse(sprint_info.startDate)
-                                else:
-                                    task.sprint_start_date = datetime.now()
         logging.debug("Sorting tasks based on sprint information...")
         tasks.sort(key=cmp_to_key(self.compare_sprint_priority))
 
@@ -624,7 +622,7 @@ class JiraJuggler:
             issue_key (str): Name of the JIRA issue
 
         Returns:
-            datetime.datetime/None: Start date as a datetime object or None if the sprint does not have a start date
+            datetime.datetime: Start date as a datetime object or 'now' if the sprint does not have a start date
         """
         start_date_match = re.search("startDate=(.+?),", sprint_info)
         if start_date_match:
@@ -634,7 +632,7 @@ class JiraJuggler:
                     return parser.parse(start_date_match.group(1))
                 except parser.ParserError as err:
                     logging.debug("Failed to parse start date of sprint of issue %s: %s", issue_key, err)
-        return None
+        return datetime.now()
 
     @staticmethod
     def compare_sprint_priority(a, b):
