@@ -195,8 +195,11 @@ class JugglerTaskAllocate(JugglerTaskProperty):
                             return  # assignee was changed after transition to Resolved status
 
         if not self.value or self.value == self.DEFAULT_VALUE:
-            if hasattr(jira_issue.fields, 'assignee'):
-                self.value = jira_issue.fields.assignee.name
+            if getattr(jira_issue.fields, 'assignee', None):
+                if hasattr(jira_issue.fields.assignee, 'name'):
+                    self.value = jira_issue.fields.assignee.name
+                else:
+                    self.value = jira_issue.fields.assignee.emailAddress.split('@')[0]
             else:
                 self.value = self.DEFAULT_VALUE
 
