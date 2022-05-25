@@ -188,11 +188,11 @@ class JugglerTaskAllocate(JugglerTaskProperty):
                             self.value = getattr(item, 'from', None)
                         else:
                             self.value = item.to
-                            return  # got last assignee before transition to Resolved status
-                    elif item.field.lower() == 'status' and item.toString.lower() == 'resolved':
+                            return  # got last assignee before transition to Closed/Resolved status
+                    elif item.field.lower() == 'status' and item.toString.lower() in ('closed', 'resolved'):
                         before_resolved = True
                         if self.value and self.value != self.DEFAULT_VALUE:
-                            return  # assignee was changed after transition to Resolved status
+                            return  # assignee was changed after transition to Closed/Resolved status
 
         if not self.value or self.value == self.DEFAULT_VALUE:
             if getattr(jira_issue.fields, 'assignee', None):
