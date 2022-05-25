@@ -418,7 +418,7 @@ task {id} "{description}" {{
         if self.is_resolved:
             for change in self.issue.changelog.histories:
                 for item in change.items[::-1]:
-                    if item.field.lower() == 'status' and item.toString.lower() == 'resolved':
+                    if item.field.lower() == 'status' and item.toString.lower() in ('resolved', 'closed'):
                         return parser.isoparse(change.created)
         return None
 
