@@ -380,11 +380,11 @@ task {id} "{description}" {{
         self.issue = jira_issue
         summary = jira_issue.fields.summary.replace('\"', '\\\"')
         self.summary = (summary[:self.MAX_SUMMARY_LENGTH] + '...') if len(summary) > self.MAX_SUMMARY_LENGTH else summary
+        if self.is_resolved:
+            self.resolved_at_date = self.determine_resolved_at_date()
         self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
         self.properties['effort'] = JugglerTaskEffort(jira_issue)
         self.properties['depends'] = JugglerTaskDepends(jira_issue)
-        if self.is_resolved:
-            self.resolved_at_date = self.determine_resolved_at_date()
 
     def validate(self, tasks):
         """Validates (and corrects) the current task
