@@ -421,7 +421,6 @@ task {id} "{description}" {{
         """
         return self._resolved_at_date
 
-
     @resolved_at_date.setter
     def resolved_at_date(self, value):
         self._resolved_at_date = value
@@ -437,6 +436,7 @@ task {id} "{description}" {{
                     elif status in ('closed',) and closed_at_date is None:
                         closed_at_date = parser.isoparse(change.created)
         return closed_at_date
+
 
 class JiraJuggler:
     """Class for task-juggling Jira results"""
@@ -492,7 +492,6 @@ class JiraJuggler:
                 busy = False
 
             self.issue_count += len(issues)
-
             for issue in issues:
                 logging.debug('Retrieved %s: %s', issue.key, issue.fields.summary)
                 tasks.append(JugglerTask(issue))
