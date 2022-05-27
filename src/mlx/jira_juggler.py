@@ -192,7 +192,7 @@ class JugglerTaskAllocate(JugglerTaskProperty):
         """
         if jira_issue.fields.status.name in ('Closed', 'Resolved'):
             before_resolved = False
-            for change in reversed(jira_issue.changelog.histories):  # travel back in time
+            for change in sorted(jira_issue.changelog.histories, key=attrgetter('created'), reverse=True):
                 for item in change.items:
                     if item.field.lower() == 'assignee':
                         if not before_resolved:
