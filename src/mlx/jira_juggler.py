@@ -11,6 +11,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, time
 from functools import cmp_to_key
 from getpass import getpass
+from operator import attrgetter
 
 from dateutil import parser
 from decouple import config
@@ -351,6 +352,7 @@ task {id} "{description}" {{
         self.summary = self.DEFAULT_SUMMARY
         self.properties = {}
         self.issue = None
+        self._resolved_at_date = None
 
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
@@ -368,6 +370,8 @@ task {id} "{description}" {{
         self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
         self.properties['effort'] = JugglerTaskEffort(jira_issue)
         self.properties['depends'] = JugglerTaskDepends(jira_issue)
+        if self.is_resolved:
+            self.resolved_at_date = self.determine_resolved_at_date()
 
     def validate(self, tasks):
         """Validates (and corrects) the current task
@@ -412,16 +416,27 @@ task {id} "{description}" {{
 
     @property
     def resolved_at_date(self):
-        """datetime.datetime: Date and time corresponding to the last transition to the Resolved status; None when not
-            resolved
+        """datetime.datetime: Date and time corresponding to the last transition to the Approved/Resolved status; the
+            transition to the Closed status is used as fallback; None when not resolved
         """
-        if self.is_resolved:
-            for change in self.issue.changelog.histories:
-                for item in change.items[::-1]:
-                    if item.field.lower() == 'status' and item.toString.lower() in ('resolved', 'closed'):
-                        return parser.isoparse(change.created)
-        return None
+        return self._resolved_at_date
 
+
+    @resolved_at_date.setter
+    def resolved_at_date(self, value):
+        self._resolved_at_date = value
+
+    def determine_resolved_at_date(self):
+        closed_at_date = None
+        for change in sorted(self.issue.changelog.histories, key=attrgetter('created'), reverse=True):
+            for item in change.items:
+                if item.field.lower() == 'status':
+                    status = item.toString.lower()
+                    if status in ('approved', 'resolved'):
+                        return parser.isoparse(change.created)
+                    elif status in ('closed',) and closed_at_date is None:
+                        closed_at_date = parser.isoparse(change.created)
+        return closed_at_date
 
 class JiraJuggler:
     """Class for task-juggling Jira results"""
