@@ -299,7 +299,8 @@ class TestJiraJuggler(unittest.TestCase):
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_resolved_task(self, jira_mock):
-        '''Test that the last assignee in the Analyzed state is used and the Time Spent is used as effort'''
+        '''Test that the last assignee in the Analyzed state is used and the Time Spent is used as effort
+        Test that the most recent transition to the Approved/Resolved state is used to mark the end'''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
@@ -343,7 +344,7 @@ class TestJiraJuggler(unittest.TestCase):
             {
                 'items': [{
                     'field': 'status',
-                    'toString': 'Resolved',
+                    'toString': 'Approved',
                 }],
                 'created': '2022-05-25T14:07:11.974+0200',
             },
@@ -361,6 +362,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(1, len(issues))
         self.assertEqual(self.ASSIGNEE2, issues[0].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
+        self.assertEqual('2022-05-25 14:07:11.974000+02:00', str(issues[0].resolved_at_date))
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_closed_task(self, jira_mock):
