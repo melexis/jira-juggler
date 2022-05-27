@@ -114,10 +114,10 @@ def calculate_weekends(date, workdays_passed, weeklymax):
 
 def to_username(value):
     if isinstance(value, str) and len(value) >= 24:
-            if value not in id_to_username_mapping:
-                user = jirahandle.user(value)
-                id_to_username_mapping[value] = user.emailAddress.split('@')[0]
-            return id_to_username_mapping[value]
+        if value not in id_to_username_mapping:
+            user = jirahandle.user(value)
+            id_to_username_mapping[value] = user.emailAddress.split('@')[0]
+        return id_to_username_mapping[value]
     return value
 
 
@@ -497,7 +497,7 @@ class JiraJuggler:
         while busy:
             try:
                 issues = jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
-                                                       expand='changelog')
+                                                  expand='changelog')
             except JIRAError:
                 logging.error('Invalid Jira query "%s"', self.query)
                 return None
