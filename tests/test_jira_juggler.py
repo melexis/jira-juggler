@@ -308,41 +308,46 @@ class TestJiraJuggler(unittest.TestCase):
                 'items': [{
                     'field': 'assignee',
                     'to': self.ASSIGNEE1,
-                }]
+                }],
+                'created': '2022-04-08T13:11:47.749+0200',
             },
             {
                 'items': [{
                     'field': 'status',
                     'toString': 'Resolved',
-                }]
+                }],
+                'created': '2022-04-11T08:13:14.350+0200',
             },
             {
                 'items': [{
                     'field': 'assignee',
                     'to': self.ASSIGNEE3,
                     # 'from': self.ASSIGNEE1,  # cannot use 'from' as key to test
-                }]
+                }],
+                'created': '2022-04-12T13:04:11.449+0200',
             },
             {
                 'items': [{
                     'field': 'status',
                     'toString': 'Analyzed',
-                }]
+                }],
+                'created': '2022-04-13T14:10:43.632+0200',
             },
             {
                 'items': [{
                     'field': 'assignee',
                     'to': self.ASSIGNEE2,
-                }]
+                }],
+                'created': '2022-05-02T09:20:36.310+0200',
             },
             {
                 'items': [{
                     'field': 'status',
                     'toString': 'Resolved',
-                }]
+                }],
+                'created': '2022-05-25T14:07:11.974+0200',
             },
         ]
-
         jira_mock_object.search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
                                                                              self.SUMMARY1,
                                                                              self.ASSIGNEE1,
@@ -371,13 +376,15 @@ class TestJiraJuggler(unittest.TestCase):
                 'items': [{
                     'field': 'status',
                     'toString': 'Resolved',
-                }]
+                }],
+                'created': '2022-04-12T13:04:11.449+0200',
             },
             {
                 'items': [{
                     'field': 'assignee',
                     'to': self.ASSIGNEE2,
-                }]
+                }],
+                'created': '2022-05-25T14:07:11.974+0200',
             },
         ]
 
