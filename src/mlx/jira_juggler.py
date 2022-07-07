@@ -668,7 +668,7 @@ class JiraJuggler:
             return 1
         if a.sprint_priority == 0 or a.sprint_name == b.sprint_name:
             return 0  # no/same sprint associated with both issues
-        if type(a.sprint_start_date) != type(b.sprint_start_date):
+        if type(a.sprint_start_date) != type(b.sprint_start_date):  # noqa
             return -1 if b.sprint_start_date is None else 1
         if a.sprint_start_date == b.sprint_start_date:
             # a sprint with backlog in its name has lower priority
