@@ -597,7 +597,7 @@ class JiraJuggler:
         for task in tasks:
             task.sprint_name = ""
             task.sprint_priority = 0
-            task.sprint_start_date = datetime.now()
+            task.sprint_start_date = None
             if not task.issue:
                 continue
             values = getattr(task.issue.fields, sprint_field_name, None)
@@ -636,7 +636,7 @@ class JiraJuggler:
             issue_key (str): Name of the JIRA issue
 
         Returns:
-            datetime.datetime: Start date as a datetime object or 'now' if the sprint does not have a start date
+            datetime.datetime/None: Start date as a datetime object or None if the sprint does not have a start date
         """
         start_date_match = re.search("startDate=(.+?),", sprint_info)
         if start_date_match:
@@ -646,7 +646,7 @@ class JiraJuggler:
                     return parser.parse(start_date_match.group(1))
                 except parser.ParserError as err:
                     logging.debug("Failed to parse start date of sprint of issue %s: %s", issue_key, err)
-        return datetime.now()
+                    return None
 
     @staticmethod
     def compare_sprint_priority(a, b):
@@ -668,6 +668,8 @@ class JiraJuggler:
             return 1
         if a.sprint_priority == 0 or a.sprint_name == b.sprint_name:
             return 0  # no/same sprint associated with both issues
+        if type(a.sprint_start_date) != type(b.sprint_start_date):
+            return -1 if b.sprint_start_date is None else 1
         if a.sprint_start_date == b.sprint_start_date:
             # a sprint with backlog in its name has lower priority
             if "backlog" not in a.sprint_name.lower() and "backlog" in b.sprint_name.lower():
@@ -677,7 +679,7 @@ class JiraJuggler:
             if natsorted([a.sprint_name, b.sprint_name], alg=ns.IGNORECASE)[0] == a.sprint_name:
                 return -1
             return 1
-        elif a.sprint_start_date < b.sprint_start_date:
+        if a.sprint_start_date < b.sprint_start_date:
             return -1
         return 1
 
