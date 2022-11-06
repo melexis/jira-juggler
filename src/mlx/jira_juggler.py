@@ -19,7 +19,7 @@ from jira import JIRA, JIRAError
 from natsort import natsorted, ns
 
 DEFAULT_LOGLEVEL = 'warning'
-DEFAULT_JIRA_URL = 'https://jira.melexis.com/jira'
+DEFAULT_JIRA_URL = 'https://melexis.atlassian.net'
 DEFAULT_OUTPUT = 'jira_export.tjp'
 
 JIRA_PAGE_SIZE = 50
