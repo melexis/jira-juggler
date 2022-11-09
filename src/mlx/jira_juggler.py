@@ -528,7 +528,7 @@ class JiraJuggler:
         if not juggler_tasks:
             return None
         if output:
-            with open(output, 'w') as out:
+            with open(output, 'w', encoding='utf-8') as out:
                 for task in juggler_tasks:
                     out.write(str(task))
         return juggler_tasks
