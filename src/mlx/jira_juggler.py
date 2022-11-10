@@ -7,7 +7,7 @@ This script queries Jira, and generates a task-juggler input file to generate a 
 import argparse
 import logging
 import re
-from abc import ABC, abstractmethod
+from abc import ABC
 from datetime import datetime, time
 from functools import cmp_to_key
 from getpass import getpass
