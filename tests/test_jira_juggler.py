@@ -445,11 +445,12 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(3, len(issues))
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
-        self.assertEqual('    end 2021-08-18-18:00-+0200\n', str(issues[0].properties['depends']))
+        self.assertEqual('    end 2021-08-18-18:00-+0200\n', str(issues[0].properties['time']))
+        self.assertEqual('', str(issues[0].properties['depends']))
 
         self.assertEqual(self.ASSIGNEE1, issues[1].properties['allocate'].value)
         self.assertEqual(3.2 + 2.4, issues[1].properties['effort'].value)
-        self.assertEqual('    start %{2021-08-23-13:00 - 9.125d}\n', str(issues[1].properties['depends']))  # 3.2 days spent
+        self.assertEqual('    start %{2021-08-23-13:00 - 9.125d}\n', str(issues[1].properties['time']))  # 3.2 days spent
 
         self.assertEqual(self.ASSIGNEE1, issues[2].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].value)
