@@ -144,7 +144,16 @@ class JugglerTaskProperty(ABC):
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
 
-    @abstractmethod
+    @property
+    def is_empty(self):
+        """bool: True if the property contains an empty or uninitialized value"""
+        return not self.value or self.value == self.DEFAULT_VALUE
+
+    def clear(self):
+        """Sets the name and value to the default"""
+        self.name = self.DEFAULT_NAME
+        self.value = self.DEFAULT_VALUE
+
     def load_from_jira_issue(self, jira_issue):
         """Loads the object with data from a Jira issue
 
@@ -205,7 +214,7 @@ class JugglerTaskAllocate(JugglerTaskProperty):
                         if self.value and self.value != self.DEFAULT_VALUE:
                             return  # assignee was changed after transition to Closed/Resolved status
 
-        if not self.value or self.value == self.DEFAULT_VALUE:
+        if self.is_empty:
             if getattr(jira_issue.fields, 'assignee', None):
                 if hasattr(jira_issue.fields.assignee, 'name'):
                     self.value = jira_issue.fields.assignee.name
@@ -345,6 +354,31 @@ class JugglerTaskDepends(JugglerTaskProperty):
         return ''
 
 
+class JugglerTaskTime(JugglerTaskProperty):
+    """Class for setting the start/end time of a juggler task"""
+
+    DEFAULT_VALUE = ''
+    PREFIX = ''
+
+    def validate(self, *_):
+        """Validates the current task property"""
+        if not self.is_empty:
+            valid_names = ('start', 'end')
+            if self.name not in valid_names:
+                raise ValueError(f'The name of {self.__class__.__name__} is invalid; expected a value in {valid_names}')
+
+    def __str__(self):
+        """Converts task property object to the task juggler syntax
+
+        Returns:
+            str: String representation of the task property in juggler syntax
+        """
+        if self.value:
+            return self.TEMPLATE.format(prop=self.name,
+                                        value=self.value)
+        return ''
+
+
 class JugglerTask:
     """Class for a task for Task-Juggler"""
 
@@ -385,6 +419,7 @@ task {id} "{description}" {{
         self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
         self.properties['effort'] = JugglerTaskEffort(jira_issue)
         self.properties['depends'] = JugglerTaskDepends(jira_issue)
+        self.properties['time'] = JugglerTaskTime()
 
     def validate(self, tasks):
         """Validates (and corrects) the current task
@@ -551,34 +586,34 @@ class JiraJuggler:
             weeklymax (float): Number of allocated workdays per week
             current_date (datetime.datetime): Offset-naive datetime to treat as the current date
         """
+        current_date_str = to_juggler_date(current_date)
         unresolved_tasks = {}
         for task in tasks:
             assignee = str(task.properties['allocate'])
-            if assignee not in unresolved_tasks:
-                unresolved_tasks[assignee] = []
 
             depends_property = task.properties['depends']
+            time_property = task.properties['time']
+
             if task.is_resolved:
-                depends_property.PREFIX = ''
-                depends_property.name = 'end'
-                depends_property.value = [task.resolved_at_repr]  # overwrite any links in JIRA
+                depends_property.clear()  # don't output any links in JIRA
+                time_property.name = 'end'
+                time_property.value = task.resolved_at_repr
             else:
-                if unresolved_tasks[assignee]:  # task with dependency
+                if assignee in unresolved_tasks:  # link to a preceding unresolved task
                     preceding_task = unresolved_tasks[assignee][-1]
                     depends_property.append_value(to_identifier(preceding_task.key))
-                elif not depends_property.value:  # first unresolved task for assignee
-                    depends_property.PREFIX = ''
-                    depends_property.name = 'start'
-                    val = to_juggler_date(current_date)
+                else:  # first unresolved task for assignee: set start time
+                    start_time = current_date_str
                     if task.issue.fields.timespent:
                         effort_property = task.properties['effort']
                         effort_property.value += task.issue.fields.timespent / JugglerTaskEffort.FACTOR
                         days_spent = task.issue.fields.timespent // 3600 / 8
                         weekends = calculate_weekends(current_date, days_spent, weeklymax)
                         days_per_weekend = min(2, 7 - weeklymax)
-                        val = f"%{{{val} - {days_spent + weekends * days_per_weekend}d}}"
-                    depends_property.append_value(val)
-                unresolved_tasks[assignee].append(task)
+                        start_time = f"%{{{start_time} - {days_spent + weekends * days_per_weekend}d}}"
+                    time_property.name = 'start'
+                    time_property.value = start_time
+                unresolved_tasks.setdefault(assignee, []).append(task)
 
     def sort_tasks_on_sprint(self, tasks, sprint_field_name):
         """Sorts given list of tasks based on the values of the field with the given name.
