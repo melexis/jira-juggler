@@ -437,12 +437,18 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              self.SUMMARY3,
                                                                              self.ASSIGNEE1,
                                                                              [self.ESTIMATE2, None, self.ESTIMATE3],
+                                                                             self.DEPENDS2,
+                                                                             status="Open"),
+                                                       self._mock_jira_issue('Different-assignee',
+                                                                             self.SUMMARY3,
+                                                                             self.ASSIGNEE2,
+                                                                             [self.ESTIMATE1, None, None],
                                                                              self.DEPENDS1,
                                                                              status="Open"),
                                                        ], []]
         issues = juggler.juggle(depend_on_preceding=True, weeklymax=1.0, current_date=parser.isoparse('2021-08-23T13:30'))
         jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog')])
-        self.assertEqual(3, len(issues))
+        self.assertEqual(4, len(issues))
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
         self.assertEqual('    end 2021-08-18-18:00-+0200\n', str(issues[0].properties['time']))
@@ -451,10 +457,13 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ASSIGNEE1, issues[1].properties['allocate'].value)
         self.assertEqual(3.2 + 2.4, issues[1].properties['effort'].value)
         self.assertEqual('    start %{2021-08-23-13:00 - 9.125d}\n', str(issues[1].properties['time']))  # 3.2 days spent
+        self.assertEqual('', str(issues[1].properties['depends']))
 
         self.assertEqual(self.ASSIGNEE1, issues[2].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].value)
-        self.assertEqual(f'    depends !{self.KEY2}\n', str(issues[2].properties['depends']))
+        self.assertEqual(f'    depends !{self.KEY1}, !{self.KEY2}\n', str(issues[2].properties['depends']))
+
+        self.assertEqual('', str(issues[3].properties['depends']))
 
     def _mock_jira_issue(self, key, summary, assignee=None, estimates=[], depends=[], histories=[], status="Open"):
         '''
