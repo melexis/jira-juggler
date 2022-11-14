@@ -2,7 +2,7 @@
     :target: http://www.apache.org/licenses/LICENSE-2.0
 
 =============================
-JIRA to TaskJuggler convertor
+JIRA to TaskJuggler Convertor
 =============================
 
 Tool for converting a set of JIRA tasks to TaskJuggler (TJ3) syntax.
@@ -18,11 +18,11 @@ module can convert the JIRA tasks to a gantt chart using the `TaskJuggler <http:
 Installation
 ------------
 
-Installation from pypi:
+Installation from PyPI:
 
 .. code::
 
-    pip install mlx.jira_juggler
+    pip install mlx.jira-juggler
 
 -----
 Usage
