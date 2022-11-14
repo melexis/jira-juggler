@@ -113,6 +113,14 @@ def calculate_weekends(date, workdays_passed, weeklymax):
 
 
 def to_username(value):
+    """Converts the given value to a username (user ID), if needed, while caching the result.
+
+    Args:
+        value (str/jira.User): String (account ID or user ID) or User instance
+
+    Returns:
+        str: The corresponding username
+    """
     user_id = value.accountId if hasattr(value, 'accountId') else value
     if user_id in id_to_username_mapping:
         return id_to_username_mapping[user_id]
@@ -126,6 +134,17 @@ def to_username(value):
 
 
 def determine_username(user):
+    """Determines the username (user ID) for the given User.
+
+    Args:
+        user (jira.User): User instance
+
+    Returns
+        str: Corresponding username
+
+    Raises:
+        Exception: Failed to determine username
+    """
     if hasattr(user, 'emailAddress'):
         username = user.emailAddress.split('@')[0]
     elif hasattr(user, 'name'):  # compatibility with Jira Server
