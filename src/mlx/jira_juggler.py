@@ -218,8 +218,15 @@ class JugglerTaskAllocate(JugglerTaskProperty):
             if getattr(jira_issue.fields, 'assignee', None):
                 if hasattr(jira_issue.fields.assignee, 'name'):
                     self.value = jira_issue.fields.assignee.name
-                else:
+                elif hasattr(jira_issue.fields.assignee, 'emailAddress'):
                     self.value = jira_issue.fields.assignee.emailAddress.split('@')[0]
+                elif hasattr(jira_issue.fields.assignee, 'displayName'):
+                    full_name = jira_issue.fields.assignee.displayName
+                    self.value = f'"{full_name}"'
+                    logging.error(f"Failed to fetch email address of {full_name!r}: they restricted its visibility; "
+                                  f"using identifier {self.value!r} as fallback value.")
+                else:
+                    raise Exception(f"Failed to determine assignee for task {jira_issue.key}")
             else:
                 self.value = self.DEFAULT_VALUE
 
