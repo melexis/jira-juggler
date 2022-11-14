@@ -464,6 +464,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(f'    depends !{self.KEY1}, !{self.KEY2}\n', str(issues[2].properties['depends']))
 
         self.assertEqual('', str(issues[3].properties['depends']))
+        self.assertEqual('    start 2021-08-23-13:00\n', str(issues[3].properties['time']))  # start on current date
 
     def _mock_jira_issue(self, key, summary, assignee=None, estimates=[], depends=[], histories=[], status="Open"):
         '''
