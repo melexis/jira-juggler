@@ -591,9 +591,9 @@ class JiraJuggler:
         If the task has been resolved, 'end' is added instead of 'depends' no matter what, followed by the
         date and time on which it's been resolved.
 
-        If it's the first unresolved task for a given assignee and it's not linked with 'depends on'/'is blocked by'
-        through JIRA, 'start' is added instead followed by the date and hour on which the task has been started,
-        i.e. current time minus time spent. For the other unresolved tasks, the effort estimate is 'Remaining' time
+        If it's the first unresolved task for a given assignee, 'start' is added followed by the date and hour on which
+        the task has been started, i.e. current time minus time spent.
+        For the other unresolved tasks, the effort estimate is 'Remaining' time
         only instead of 'Remaining + Logged' time since parallellism is not supported by
         TaskJuggler and this approach results in a more accurate forecast.
 
