@@ -113,12 +113,31 @@ def calculate_weekends(date, workdays_passed, weeklymax):
 
 
 def to_username(value):
-    if isinstance(value, str) and len(value) >= 24:
-        if value not in id_to_username_mapping:
-            user = jirahandle.user(value)
-            id_to_username_mapping[value] = user.emailAddress.split('@')[0]
-        return id_to_username_mapping[value]
-    return value
+    user_id = value.accountId if hasattr(value, 'accountId') else value
+    if user_id in id_to_username_mapping:
+        return id_to_username_mapping[user_id]
+
+    if not isinstance(value, str):
+        id_to_username_mapping[value.accountId] = determine_username(value)
+    elif len(value) >= 24:  # accountId
+        user = jirahandle.user(value)
+        id_to_username_mapping[value] = determine_username(user)
+    return id_to_username_mapping.get(user_id, value)
+
+
+def determine_username(user):
+    if hasattr(user, 'emailAddress'):
+        username = user.emailAddress.split('@')[0]
+    elif hasattr(user, 'name'):  # compatibility with Jira Server
+        username = user.name
+    elif hasattr(user, 'displayName'):
+        full_name = user.displayName
+        username = f'"{full_name}"'
+        logging.error(f"Failed to fetch email address of {full_name!r}: they restricted its visibility; "
+                      f"using identifier {username!r} as fallback value.")
+    else:
+        raise Exception(f"Failed to determine username of {user}")
+    return username
 
 
 class JugglerTaskProperty(ABC):
@@ -216,17 +235,7 @@ class JugglerTaskAllocate(JugglerTaskProperty):
 
         if self.is_empty:
             if getattr(jira_issue.fields, 'assignee', None):
-                if hasattr(jira_issue.fields.assignee, 'name'):
-                    self.value = jira_issue.fields.assignee.name
-                elif hasattr(jira_issue.fields.assignee, 'emailAddress'):
-                    self.value = jira_issue.fields.assignee.emailAddress.split('@')[0]
-                elif hasattr(jira_issue.fields.assignee, 'displayName'):
-                    full_name = jira_issue.fields.assignee.displayName
-                    self.value = f'"{full_name}"'
-                    logging.error(f"Failed to fetch email address of {full_name!r}: they restricted its visibility; "
-                                  f"using identifier {self.value!r} as fallback value.")
-                else:
-                    raise Exception(f"Failed to determine assignee for task {jira_issue.key}")
+                self.value = to_username(jira_issue.fields.assignee)
             else:
                 self.value = self.DEFAULT_VALUE
 
