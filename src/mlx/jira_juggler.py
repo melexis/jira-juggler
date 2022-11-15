@@ -25,7 +25,6 @@ DEFAULT_OUTPUT = 'jira_export.tjp'
 JIRA_PAGE_SIZE = 50
 
 TAB = ' ' * 4
-id_to_username_mapping = {}
 
 
 def fetch_credentials():
@@ -121,15 +120,15 @@ def to_username(value):
     Returns:
         str: The corresponding username
     """
-    user_id = value.accountId if hasattr(value, 'accountId') else value
+    user_id = value.accountId if hasattr(value, 'accountId') else str(value)
     if user_id in id_to_username_mapping:
         return id_to_username_mapping[user_id]
 
     if not isinstance(value, str):
-        id_to_username_mapping[value.accountId] = determine_username(value)
+        id_to_username_mapping[user_id] = determine_username(value)
     elif len(value) >= 24:  # accountId
-        user = jirahandle.user(value)
-        id_to_username_mapping[value] = determine_username(user)
+        user = jirahandle.user(user_id)
+        id_to_username_mapping[user_id] = determine_username(user)
     return id_to_username_mapping.get(user_id, value)
 
 
@@ -145,11 +144,11 @@ def determine_username(user):
     Raises:
         Exception: Failed to determine username
     """
-    if hasattr(user, 'emailAddress'):
+    if getattr(user, 'emailAddress', ''):
         username = user.emailAddress.split('@')[0]
-    elif hasattr(user, 'name'):  # compatibility with Jira Server
+    elif getattr(user, 'name', ''):  # compatibility with Jira Server
         username = user.name
-    elif hasattr(user, 'displayName'):
+    elif getattr(user, 'displayName', ''):
         full_name = user.displayName
         username = f'"{full_name}"'
         logging.error(f"Failed to fetch email address of {full_name!r}: they restricted its visibility; "
@@ -535,6 +534,8 @@ class JiraJuggler:
             token (str): API token (or password)
             query (str): The query to run
         """
+        global id_to_username_mapping
+        id_to_username_mapping = {}
         logging.info('Jira endpoint: %s', endpoint)
 
         global jirahandle
