@@ -210,9 +210,6 @@ class TestJiraJuggler(unittest.TestCase):
                                              self.DEPENDS1,
                                              email=self.EMAIL1)
         mocked_issue.fields.assignee.emailAddress = ''
-        from pprint import pprint
-        pprint(mocked_issue.fields)
-        #raise ValueError(mocked_issue.fields.assignee.emailAddress)
         jira_mock_object.search_issues.side_effect = [[mocked_issue], []]
         issues = juggler.juggle()
         jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
