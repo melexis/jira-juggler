@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import json
-from collections import namedtuple
 from datetime import datetime
+from types import SimpleNamespace
 
 from dateutil import parser
 from parameterized import parameterized
@@ -51,24 +51,37 @@ class TestJiraJuggler(unittest.TestCase):
     KEY1 = 'Issue1'
     SUMMARY1 = 'Some random description of issue 1'
     ASSIGNEE1 = 'John Doe'
+    EMAIL1 = 'jod@gmail.com'
+    USERNAME1 = 'jod'
     ESTIMATE1 = 0.3 * SECS_PER_DAY
     DEPENDS1 = []
 
     KEY2 = 'Issue2'
     SUMMARY2 = 'Some random description of issue 2'
     ASSIGNEE2 = 'Jane Doe'
+    EMAIL2 = 'jad@gmail.com'
+    USERNAME2 = 'jad'
     ESTIMATE2 = 1.2 * SECS_PER_DAY
     DEPENDS2 = [KEY1]
 
     KEY3 = 'Issue3'
     SUMMARY3 = 'Some random description of issue 3'
     ASSIGNEE3 = 'Cooky Doe'
+    EMAIL3 = 'cod@gmail.com'
+    USERNAME3 = 'cod'
     ESTIMATE3 = 1.0 * SECS_PER_DAY
     DEPENDS3 = [KEY1, KEY2]
 
     JIRA_JSON_ASSIGNEE_TEMPLATE = '''
             "assignee": {{
                 "name": "{assignee}"
+            }}
+    '''
+    JIRA_CLOUD_JSON_ASSIGNEE_TEMPLATE = '''
+            "assignee": {{
+                "emailAddress": "{email}",
+                "displayName": "{assignee}",
+                "accountId": "{account_id}"
             }}
     '''
 
@@ -135,7 +148,7 @@ class TestJiraJuggler(unittest.TestCase):
 
     @patch('mlx.jira_juggler.JIRA', autospec=True)
     def test_single_task_happy(self, jira_mock):
-        '''Test for simple happy flow: single task is returned by Jira'''
+        '''Test for simple happy flow: single task is returned by Jira Server'''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
@@ -154,6 +167,57 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.KEY1, issues[0].key)
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
+        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
+        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
+
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    def test_single_task_email_happy(self, jira_mock):
+        '''Test for simple happy flow: single task is returned by Jira Cloud'''
+        jira_mock_object = MagicMock(spec=JIRA)
+        jira_mock.return_value = jira_mock_object
+        juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
+        self.assertEqual(self.QUERY, juggler.query)
+
+        jira_mock_object.search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
+                                                                             self.SUMMARY1,
+                                                                             self.ASSIGNEE1,
+                                                                             [self.ESTIMATE1, None, None],
+                                                                             self.DEPENDS1,
+                                                                             email=self.EMAIL1)
+                                                       ], []]
+        issues = juggler.juggle()
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1, expand='changelog')])
+        self.assertEqual(1, len(issues))
+        self.assertEqual(self.KEY1, issues[0].key)
+        self.assertEqual(self.SUMMARY1, issues[0].summary)
+        self.assertEqual(self.USERNAME1, issues[0].properties['allocate'].value)
+        self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
+        self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
+
+    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    def test_single_task_email_hidden(self, jira_mock):
+        '''Test for error logging when user has restricted email visibility in Jira Cloud'''
+        jira_mock_object = MagicMock(spec=JIRA)
+        jira_mock.return_value = jira_mock_object
+        juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
+        self.assertEqual(self.QUERY, juggler.query)
+
+        mocked_issue = self._mock_jira_issue(self.KEY1,
+                                             self.SUMMARY1,
+                                             self.ASSIGNEE1,
+                                             [self.ESTIMATE1, None, None],
+                                             self.DEPENDS1,
+                                             email=self.EMAIL1)
+        mocked_issue.fields.assignee.emailAddress = ''
+        jira_mock_object.search_issues.side_effect = [[mocked_issue], []]
+        issues = juggler.juggle()
+        jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog'),
+                                                         call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=1, expand='changelog')])
+        self.assertEqual(1, len(issues))
+        self.assertEqual(self.KEY1, issues[0].key)
+        self.assertEqual(self.SUMMARY1, issues[0].summary)
+        self.assertEqual(f'"{self.ASSIGNEE1}"', issues[0].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
         self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
 
@@ -437,25 +501,36 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              self.SUMMARY3,
                                                                              self.ASSIGNEE1,
                                                                              [self.ESTIMATE2, None, self.ESTIMATE3],
+                                                                             self.DEPENDS2,
+                                                                             status="Open"),
+                                                       self._mock_jira_issue('Different-assignee',
+                                                                             self.SUMMARY3,
+                                                                             self.ASSIGNEE2,
+                                                                             [self.ESTIMATE1, None, None],
                                                                              self.DEPENDS1,
                                                                              status="Open"),
                                                        ], []]
         issues = juggler.juggle(depend_on_preceding=True, weeklymax=1.0, current_date=parser.isoparse('2021-08-23T13:30'))
         jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog')])
-        self.assertEqual(3, len(issues))
+        self.assertEqual(4, len(issues))
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
-        self.assertEqual('    end 2021-08-18-18:00-+0200\n', str(issues[0].properties['depends']))
+        self.assertEqual('    end 2021-08-18-18:00-+0200\n', str(issues[0].properties['time']))
+        self.assertEqual('', str(issues[0].properties['depends']))
 
         self.assertEqual(self.ASSIGNEE1, issues[1].properties['allocate'].value)
         self.assertEqual(3.2 + 2.4, issues[1].properties['effort'].value)
-        self.assertEqual('    start %{2021-08-23-13:00 - 9.125d}\n', str(issues[1].properties['depends']))  # 3.2 days spent
+        self.assertEqual('    start %{2021-08-23-13:00 - 9.125d}\n', str(issues[1].properties['time']))  # 3.2 days spent
+        self.assertEqual('', str(issues[1].properties['depends']))
 
         self.assertEqual(self.ASSIGNEE1, issues[2].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].value)
-        self.assertEqual(f'    depends !{self.KEY2}\n', str(issues[2].properties['depends']))
+        self.assertEqual(f'    depends !{self.KEY1}, !{self.KEY2}\n', str(issues[2].properties['depends']))
 
-    def _mock_jira_issue(self, key, summary, assignee=None, estimates=[], depends=[], histories=[], status="Open"):
+        self.assertEqual('', str(issues[3].properties['depends']))
+        self.assertEqual('    start 2021-08-23-13:00\n', str(issues[3].properties['time']))  # start on current date
+
+    def _mock_jira_issue(self, key, summary, assignee='', estimates=[], depends=[], histories=[], status="Open", email=''):
         '''
         Helper function to create a mocked Jira issue
 
@@ -473,7 +548,11 @@ class TestJiraJuggler(unittest.TestCase):
         props = ', ' + self.JIRA_JSON_STATUS_TEMPLATE.format(status=status)
         if assignee:
             props += ', '
-            props += self.JIRA_JSON_ASSIGNEE_TEMPLATE.format(assignee=assignee)
+            if email:
+                props += self.JIRA_CLOUD_JSON_ASSIGNEE_TEMPLATE.format(email=email, assignee=assignee,
+                                                                       account_id=id(email))
+            else:
+                props += self.JIRA_JSON_ASSIGNEE_TEMPLATE.format(assignee=assignee)
         if estimates:
             estimates = ['null' if val is None else val for val in estimates]
             props += ', '
@@ -493,7 +572,7 @@ class TestJiraJuggler(unittest.TestCase):
                                                     summary=summary,
                                                     properties=props,
                                                     changelog=changelog)
-        return json.loads(data, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+        return json.loads(data, object_hook=lambda d: SimpleNamespace(**d))
 
     @parameterized.expand([
         ("2021-08-15-11:00", 10, 5, 2),
