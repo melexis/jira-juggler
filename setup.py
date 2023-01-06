@@ -20,8 +20,8 @@ setup(
     package_dir={'': 'src'},
     entry_points={'console_scripts': ['jira-juggler = mlx.jira_juggler:entrypoint']},
     include_package_data=True,
-    install_requires=['jira>=3.1.1', 'python-dateutil>=2.8.0,<3.*', 'natsort>=7.1.0,<8.*', 'python-decouple'],
-    setup_requires=['setuptools-scm>=6.0.0,<7.*'],
+    install_requires=['jira>=3.1.1', 'python-dateutil>=2.8.0,<3.0', 'natsort>=7.1.0,<8.0', 'python-decouple'],
+    setup_requires=['setuptools-scm>=6.0.0,<7.0'],
     namespace_packages=['mlx'],
     classifiers=[
         # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
