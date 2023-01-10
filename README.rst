@@ -34,10 +34,11 @@ See help from python module:
 
     jira-juggler -h
 
-By default, the following endpoint for the JIRA API is used: *https://jira.melexis.com/jira*.
+By default, the following endpoint for the JIRA API is used: *https://melexis.atlassian.net*.
 The script will ask you to input your email address (or username) and API token (or password). These three
 variables can be configured by setting them in a *.env* file. This *.env* file shall be located in the directory where
-pip has installed the package. You can find an example configuration in *.env.example*.
+pip has installed the package. You can find an example configuration in *.env.example*. JIRA Cloud requires the
+combination of email address and API token, while JIRA Server might accept a username and password.
 
 .. note::
 
