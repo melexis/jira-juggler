@@ -48,7 +48,8 @@ class TestJiraJuggler(unittest.TestCase):
     QUERY = 'some random query'
     SECS_PER_DAY = 8.0 * 60 * 60
 
-    KEY1 = 'Issue1'
+    KEY1 = 'Issue-1'
+    ID1 = 'Issue_1'
     SUMMARY1 = 'Some random description of issue 1'
     ASSIGNEE1 = 'John Doe'
     EMAIL1 = 'jod@gmail.com'
@@ -56,21 +57,23 @@ class TestJiraJuggler(unittest.TestCase):
     ESTIMATE1 = 0.3 * SECS_PER_DAY
     DEPENDS1 = []
 
-    KEY2 = 'Issue2'
+    KEY2 = 'Issue-2'
+    ID2 = 'Issue_2'
     SUMMARY2 = 'Some random description of issue 2'
     ASSIGNEE2 = 'Jane Doe'
     EMAIL2 = 'jad@gmail.com'
     USERNAME2 = 'jad'
     ESTIMATE2 = 1.2 * SECS_PER_DAY
-    DEPENDS2 = [KEY1]
+    DEPENDS2 = [ID1]
 
-    KEY3 = 'Issue3'
+    KEY3 = 'Issue-3'
+    ID3 = 'Issue_3'
     SUMMARY3 = 'Some random description of issue 3'
     ASSIGNEE3 = 'Cooky Doe'
     EMAIL3 = 'cod@gmail.com'
     USERNAME3 = 'cod'
     ESTIMATE3 = 1.0 * SECS_PER_DAY
-    DEPENDS3 = [KEY1, KEY2]
+    DEPENDS3 = [ID1, ID2]
 
     JIRA_JSON_ASSIGNEE_TEMPLATE = '''
             "assignee": {{
@@ -531,12 +534,12 @@ class TestJiraJuggler(unittest.TestCase):
 
         self.assertEqual(self.ASSIGNEE1, issues[2].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].value)
-        self.assertEqual(f'    depends !{self.KEY1}, !{self.KEY2}\n', str(issues[2].properties['depends']))
+        self.assertEqual(f'    depends !{self.ID1}, !{self.ID2}\n', str(issues[2].properties['depends']))
 
         self.assertEqual('', str(issues[3].properties['depends']))
         self.assertEqual('    start 2021-08-23-13:00\n', str(issues[3].properties['time']))  # start on current date
 
-        self.assertEqual('    depends !Issue1, !Issue2\n', str(issues[4].properties['depends']))
+        self.assertEqual(f'    depends !{self.ID1}, !{self.ID2}\n', str(issues[4].properties['depends']))
         self.assertEqual('', str(issues[4].properties['time']))  # no start date as it depends on an unresolved task
 
     def _mock_jira_issue(self, key, summary, assignee='', estimates=[], depends=[], histories=[], status="Open", email=''):
