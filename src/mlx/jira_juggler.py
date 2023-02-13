@@ -624,7 +624,7 @@ class JiraJuggler:
             weeklymax (float): Number of allocated workdays per week
             current_date (datetime.datetime): Offset-naive datetime to treat as the current date
         """
-        key_to_task_map = {task.key: task for task in tasks}
+        id_to_task_map = {to_identifier(task.key): task for task in tasks}
         current_date_str = to_juggler_date(current_date)
         unresolved_tasks = {}
         for task in tasks:
@@ -642,8 +642,8 @@ class JiraJuggler:
                     preceding_task = unresolved_tasks[assignee][-1]
                     depends_property.append_value(to_identifier(preceding_task.key))
                 else:  # first unresolved task for assignee: set start time unless it depends on an unresolved task
-                    for key in depends_property.value:
-                        if not key_to_task_map[key].is_resolved:
+                    for identifier in depends_property.value:
+                        if not id_to_task_map[identifier].is_resolved:
                             break
                     else:
                         start_time = current_date_str
