@@ -624,6 +624,7 @@ class JiraJuggler:
             weeklymax (float): Number of allocated workdays per week
             current_date (datetime.datetime): Offset-naive datetime to treat as the current date
         """
+        key_to_task_map = {task.key: task for task in tasks}
         current_date_str = to_juggler_date(current_date)
         unresolved_tasks = {}
         for task in tasks:
@@ -640,17 +641,22 @@ class JiraJuggler:
                 if assignee in unresolved_tasks:  # link to a preceding unresolved task
                     preceding_task = unresolved_tasks[assignee][-1]
                     depends_property.append_value(to_identifier(preceding_task.key))
-                else:  # first unresolved task for assignee: set start time
-                    start_time = current_date_str
-                    if task.issue.fields.timespent:
-                        effort_property = task.properties['effort']
-                        effort_property.value += task.issue.fields.timespent / JugglerTaskEffort.FACTOR
-                        days_spent = task.issue.fields.timespent // 3600 / 8
-                        weekends = calculate_weekends(current_date, days_spent, weeklymax)
-                        days_per_weekend = min(2, 7 - weeklymax)
-                        start_time = f"%{{{start_time} - {days_spent + weekends * days_per_weekend}d}}"
-                    time_property.name = 'start'
-                    time_property.value = start_time
+                else:  # first unresolved task for assignee: set start time unless it depends on an unresolved task
+                    for key in depends_property.value:
+                        if not key_to_task_map[key].is_resolved:
+                            break
+                    else:
+                        start_time = current_date_str
+                        if task.issue.fields.timespent:
+                            effort_property = task.properties['effort']
+                            effort_property.value += task.issue.fields.timespent / JugglerTaskEffort.FACTOR
+                            days_spent = task.issue.fields.timespent // 3600 / 8
+                            weekends = calculate_weekends(current_date, days_spent, weeklymax)
+                            days_per_weekend = min(2, 7 - weeklymax)
+                            start_time = f"%{{{start_time} - {days_spent + weekends * days_per_weekend}d}}"
+                        time_property.name = 'start'
+                        time_property.value = start_time
+
                 unresolved_tasks.setdefault(assignee, []).append(task)
 
     def sort_tasks_on_sprint(self, tasks, sprint_field_name):
