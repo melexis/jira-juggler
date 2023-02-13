@@ -509,10 +509,16 @@ class TestJiraJuggler(unittest.TestCase):
                                                                              [self.ESTIMATE1, None, None],
                                                                              self.DEPENDS1,
                                                                              status="Open"),
+                                                       self._mock_jira_issue('Last-assignee',
+                                                                             self.SUMMARY3,
+                                                                             self.ASSIGNEE3,
+                                                                             [self.ESTIMATE1, None, None],
+                                                                             [self.KEY1, self.KEY2],
+                                                                             status="Open"),
                                                        ], []]
         issues = juggler.juggle(depend_on_preceding=True, weeklymax=1.0, current_date=parser.isoparse('2021-08-23T13:30'))
         jira_mock_object.search_issues.assert_has_calls([call(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog')])
-        self.assertEqual(4, len(issues))
+        self.assertEqual(5, len(issues))
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
         self.assertEqual('    end 2021-08-18-18:00-+0200\n', str(issues[0].properties['time']))
@@ -529,6 +535,9 @@ class TestJiraJuggler(unittest.TestCase):
 
         self.assertEqual('', str(issues[3].properties['depends']))
         self.assertEqual('    start 2021-08-23-13:00\n', str(issues[3].properties['time']))  # start on current date
+
+        self.assertEqual('    depends !Issue1, !Issue2\n', str(issues[4].properties['depends']))
+        self.assertEqual('', str(issues[4].properties['time']))  # no start date as it depends on an unresolved task
 
     def _mock_jira_issue(self, key, summary, assignee='', estimates=[], depends=[], histories=[], status="Open", email=''):
         '''
