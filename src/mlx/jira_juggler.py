@@ -355,7 +355,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
             for link in jira_issue.fields.issuelinks:
                 if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
                     self.append_value(to_identifier(link.inwardIssue.key))
-                if hasattr(link, 'outwardIssue') and link.type.name == 'Dependency':
+                if hasattr(link, 'outwardIssue') and link.type.name in ('Dependency', 'Dependent'):
                     self.append_value(to_identifier(link.outwardIssue.key))
 
     def validate(self, task, tasks):
