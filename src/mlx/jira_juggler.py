@@ -634,7 +634,7 @@ class JiraJuggler:
             time_property = task.properties['time']
 
             if task.is_resolved:
-                depends_property.clear()  # don't output any links in JIRA
+                depends_property.clear()  # don't output any links from JIRA
                 time_property.name = 'end'
                 time_property.value = task.resolved_at_repr
             else:
