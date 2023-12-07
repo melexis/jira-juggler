@@ -366,8 +366,9 @@ class JugglerTaskDepends(JugglerTaskProperty):
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
         """
-        for val in self.value:
-            if val not in [to_identifier(tsk.key) for tsk in tasks]:
+        task_ids = [to_identifier(tsk.key) for tsk in tasks]
+        for val in list(self.value):
+            if val not in task_ids:
                 logging.warning('Removing link to %s for %s, as not within scope', val, task.key)
                 self.value.remove(val)
 
