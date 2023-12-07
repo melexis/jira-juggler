@@ -11,6 +11,7 @@ from abc import ABC
 from datetime import datetime, time
 from functools import cmp_to_key
 from getpass import getpass
+from itertools import chain
 from operator import attrgetter
 
 from dateutil import parser
@@ -156,6 +157,35 @@ def determine_username(user):
     else:
         raise Exception(f"Failed to determine username of {user}")
     return username
+
+
+def determine_default_links(link_types_per_name):
+    default_links = []
+    for link_types in ({'Blocker': 'inward', 'Blocks': 'inward'}, {'Dependency': 'outward', 'Dependent': 'outward'}):
+        for link_type_name, direction in link_types.items():
+            if link_type_name in link_types_per_name:
+                link = getattr(link_types_per_name[link_type_name], direction)
+                default_links.append(link)
+                break
+        else:
+            logging.warning("Failed to find any of these default jira-juggler issue link types in your Jira project "
+                            f"configuration: {list(link_types)}. Use --links if you think this is a problem.")
+    return default_links
+
+
+def determine_links(jira_link_types, input_links):
+    valid_links = set()
+    if input_links is None:
+        link_types_per_name = {link_type.name: link_type for link_type in jira_link_types}
+        valid_links = determine_default_links(link_types_per_name)
+    elif input_links:
+        unique_input_links = set(input_links)
+        all_jira_links = chain.from_iterable((link_type.inward, link_type.outward) for link_type in jira_link_types)
+        missing_links = unique_input_links.difference(all_jira_links)
+        if missing_links:
+            logging.warning(f"Failed to find links {missing_links} in your configuration in Jira")
+        valid_links = unique_input_links - missing_links
+    return valid_links
 
 
 class JugglerTaskProperty(ABC):
@@ -304,7 +334,7 @@ class JugglerTaskEffort(JugglerTaskProperty):
 
         Args:
             task (JugglerTask): Task to which the property belongs
-            tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
+            tasks (list): Modifiable list of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
         """
         if self.value == 0:
@@ -321,6 +351,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
     DEFAULT_NAME = 'depends'
     DEFAULT_VALUE = []
     PREFIX = '!'
+    links = set()
 
     @property
     def value(self):
@@ -353,10 +384,10 @@ class JugglerTaskDepends(JugglerTaskProperty):
         self.value = self.DEFAULT_VALUE
         if hasattr(jira_issue.fields, 'issuelinks'):
             for link in jira_issue.fields.issuelinks:
-                if hasattr(link, 'inwardIssue') and link.type.name in ('Blocker', 'Blocks'):
-                    self.append_value(to_identifier(link.inwardIssue.key))
-                if hasattr(link, 'outwardIssue') and link.type.name in ('Dependency', 'Dependent'):
-                    self.append_value(to_identifier(link.outwardIssue.key))
+                if hasattr(link, 'inwardIssue') and link.type.inward in self.links:
+                   self.append_value(to_identifier(link.inwardIssue.key))
+                elif hasattr(link, 'outwardIssue') and link.type.outward in self.links:
+                   self.append_value(to_identifier(link.outwardIssue.key))
 
     def validate(self, task, tasks):
         """Validates (and corrects) the current task property
@@ -526,7 +557,7 @@ task {id} "{description}" {{
 class JiraJuggler:
     """Class for task-juggling Jira results"""
 
-    def __init__(self, endpoint, user, token, query):
+    def __init__(self, endpoint, user, token, query, links=None):
         """Constructs a JIRA juggler object
 
         Args:
@@ -534,6 +565,7 @@ class JiraJuggler:
             user (str): Email address (or username)
             token (str): API token (or password)
             query (str): The query to run
+            links (set/None): List of issue link type inward/outward links; None to use the default configuration
         """
         global id_to_username_mapping
         id_to_username_mapping = {}
@@ -544,6 +576,10 @@ class JiraJuggler:
         logging.info('Query: %s', query)
         self.query = query
         self.issue_count = 0
+
+        all_jira_link_types = jirahandle.issue_link_types()
+        JugglerTaskDepends.links = determine_links(all_jira_link_types, links)
+
 
     @staticmethod
     def validate_tasks(tasks):
@@ -784,6 +820,11 @@ def main():
                         help='Query to perform on JIRA server')
     argpar.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
                         help='Output .tjp file for task-juggler')
+    argpar.add_argument('-L', '--links', nargs='*',
+                        help="Specific issue link type inward/outward links to consider for TaskJuggler's 'depends' "
+                        "keyword, e.g. 'depends on'. "
+                        "By default, link types Dependency/Dependent (outward only) and Blocker/Blocks (inwardy only) "
+                        "are considered.  Specify an empty value to ignore Jira issue links altogether.")
     argpar.add_argument('-D', '--depend-on-preceding', action='store_true',
                         help='Flag to let tasks depend on the preceding task with the same assignee')
     argpar.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
@@ -796,12 +837,11 @@ def main():
                         help='Specify the offset-naive date to use for calculation as current date. If no value is '
                              'specified, the current value of the system clock is used.')
     args = argpar.parse_args()
-
     set_logging_level(args.loglevel)
 
     user, token = fetch_credentials()
     endpoint = config('JIRA_API_ENDPOINT', default=DEFAULT_JIRA_URL)
-    JUGGLER = JiraJuggler(endpoint, user, token, args.query)
+    JUGGLER = JiraJuggler(endpoint, user, token, args.query, links=args.links)
 
     JUGGLER.juggle(
         output=args.output,
