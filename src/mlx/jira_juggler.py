@@ -385,9 +385,9 @@ class JugglerTaskDepends(JugglerTaskProperty):
         if hasattr(jira_issue.fields, 'issuelinks'):
             for link in jira_issue.fields.issuelinks:
                 if hasattr(link, 'inwardIssue') and link.type.inward in self.links:
-                   self.append_value(to_identifier(link.inwardIssue.key))
+                    self.append_value(to_identifier(link.inwardIssue.key))
                 elif hasattr(link, 'outwardIssue') and link.type.outward in self.links:
-                   self.append_value(to_identifier(link.outwardIssue.key))
+                    self.append_value(to_identifier(link.outwardIssue.key))
 
     def validate(self, task, tasks):
         """Validates (and corrects) the current task property
@@ -578,7 +578,6 @@ class JiraJuggler:
 
         all_jira_link_types = jirahandle.issue_link_types()
         JugglerTaskDepends.links = determine_links(all_jira_link_types, links)
-
 
     @staticmethod
     def validate_tasks(tasks):
