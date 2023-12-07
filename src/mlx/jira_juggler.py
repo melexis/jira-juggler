@@ -489,18 +489,17 @@ task {id} "{description}" {{
         self.properties['depends'] = JugglerTaskDepends(jira_issue)
         self.properties['time'] = JugglerTaskTime()
 
-    def validate(self, tasks):
+    def validate(self, tasks, property_identifier):
         """Validates (and corrects) the current task
 
         Args:
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
+            property_identifier (str): Identifier of property type
         """
         if self.key == self.DEFAULT_KEY:
             logging.error('Found a task which is not initialized')
-
-        for task_property in self.properties.values():
-            task_property.validate(self, tasks)
+        self.properties[property_identifier].validate(self, tasks)
 
     def __str__(self):
         """Converts the JugglerTask to the task juggler syntax
@@ -588,8 +587,9 @@ class JiraJuggler:
         Args:
             tasks (list): List of JugglerTask instances to validate
         """
-        for task in list(tasks):
-            task.validate(tasks)
+        for property_identifier in ('allocate', 'effort', 'depends', 'time'):
+            for task in list(tasks):
+                task.validate(tasks, property_identifier)
 
     def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name='', **kwargs):
         """Loads issues from Jira
