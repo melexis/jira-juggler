@@ -50,6 +50,13 @@ ISSUE_LINK_TYPES = [
         outward="blocks",
         self="http://www.example.com/jira/rest/api/2//issueLinkType/1010",
     ),
+    LinkType(
+        id="1050",
+        name="Dependency",
+        inward="is dependency of",
+        outward="depends on",
+        self="http://www.example.com/jira/rest/api/2//issueLinkType/1050",
+    ),
 ]
 
 
@@ -133,7 +140,7 @@ class TestJiraJuggler(unittest.TestCase):
                     }},
                     "type": {{
                         "name": "Blocker",
-                        "id": "10031",
+                        "id": "1010",
                         "inward": "is blocked by",
                         "outward": "blocks"
                     }}
