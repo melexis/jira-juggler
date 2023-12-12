@@ -373,7 +373,8 @@ class JugglerTaskDepends(JugglerTaskProperty):
         Args:
             value (object): Value to append to the property
         """
-        self.value.append(value)
+        if value not in self.value:
+            self.value.append(value)
 
     def load_from_jira_issue(self, jira_issue):
         """Loads the object with data from a Jira issue
