@@ -353,20 +353,6 @@ class JugglerTaskDepends(JugglerTaskProperty):
     PREFIX = '!'
     links = set()
 
-    @property
-    def value(self):
-        """list: Value of the task juggler property"""
-        return self._value
-
-    @value.setter
-    def value(self, value):
-        """Sets value for task juggler property (deep copy)
-
-        Args:
-            value (object): New value of the property
-        """
-        self._value = list(value)
-
     def append_value(self, value):
         """Appends value for task juggler property
 
@@ -382,7 +368,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        self.value = self.DEFAULT_VALUE
+        self.value = list(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'issuelinks'):
             for link in jira_issue.fields.issuelinks:
                 if hasattr(link, 'inwardIssue') and link.type.inward in self.links:
