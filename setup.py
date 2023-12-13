@@ -8,9 +8,9 @@ setup(
         'write_to': 'src/mlx/__version__.py'
     },
     url=PROJECT_URL,
-    author='Stein Heselmans',
-    author_email='teh@melexis.com',
-    description='A python script for extracting data from Jira, and converting to task-juggler (tj3) output',
+    author='Jasper Craeghs',
+    author_email='jce@melexis.com',
+    description='A Python script for extracting data from Jira, and converting to TaskJuggler (tj3) output',
     long_description=open("README.rst").read(),
     long_description_content_type='text/x-rst',
     zip_safe=False,

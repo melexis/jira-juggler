@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 from dateutil import parser
 from parameterized import parameterized
+from collections import namedtuple
 
 import unittest
 
@@ -31,6 +32,32 @@ except ImportError:
     import pip
     pip.main(['install', 'jira'])
     from jira import JIRA
+
+
+LinkType = namedtuple('LinkType', 'id name inward outward self')
+ISSUE_LINK_TYPES = [
+    LinkType(
+        id="1000",
+        name="Duplicate",
+        inward="is duplicated by",
+        outward="duplicates",
+        self="http://www.example.com/jira/rest/api/2//issueLinkType/1000",
+    ),
+    LinkType(
+        id="1010",
+        name="Blocker",
+        inward="is blocked by",
+        outward="blocks",
+        self="http://www.example.com/jira/rest/api/2//issueLinkType/1010",
+    ),
+    LinkType(
+        id="1050",
+        name="Dependency",
+        inward="is dependency of",
+        outward="depends on",
+        self="http://www.example.com/jira/rest/api/2//issueLinkType/1050",
+    ),
+]
 
 
 class TestJiraJuggler(unittest.TestCase):
@@ -112,7 +139,10 @@ class TestJiraJuggler(unittest.TestCase):
                         "key": "{depends}"
                     }},
                     "type": {{
-                        "name": "Blocker"
+                        "name": "Blocker",
+                        "id": "1010",
+                        "inward": "is blocked by",
+                        "outward": "blocks"
                     }}
                 }}
     '''
@@ -271,6 +301,7 @@ class TestJiraJuggler(unittest.TestCase):
         '''Test for removing a broken link to a dependant task'''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
+        jira_mock_object.issue_link_types.return_value = ISSUE_LINK_TYPES
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
@@ -291,6 +322,7 @@ class TestJiraJuggler(unittest.TestCase):
         '''Test for dual happy flow: one task depends on the other'''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
+        jira_mock_object.issue_link_types.return_value = ISSUE_LINK_TYPES
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
@@ -325,6 +357,7 @@ class TestJiraJuggler(unittest.TestCase):
         '''Test for extended happy flow: one task depends on two others'''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
+        jira_mock_object.issue_link_types.return_value = ISSUE_LINK_TYPES
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
@@ -370,6 +403,7 @@ class TestJiraJuggler(unittest.TestCase):
         Test that the most recent transition to the Approved/Resolved state is used to mark the end'''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
+        jira_mock_object.issue_link_types.return_value = ISSUE_LINK_TYPES
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         histories = [
             {
@@ -439,6 +473,7 @@ class TestJiraJuggler(unittest.TestCase):
         '''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
+        jira_mock_object.issue_link_types.return_value = ISSUE_LINK_TYPES
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         histories = [
             {
@@ -476,6 +511,7 @@ class TestJiraJuggler(unittest.TestCase):
         '''Test --depends-on-preceding, --weeklymax and --current-date options'''
         jira_mock_object = MagicMock(spec=JIRA)
         jira_mock.return_value = jira_mock_object
+        jira_mock_object.issue_link_types.return_value = ISSUE_LINK_TYPES
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         histories = [
             {

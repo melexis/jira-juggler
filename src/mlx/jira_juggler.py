@@ -11,6 +11,7 @@ from abc import ABC
 from datetime import datetime, time
 from functools import cmp_to_key
 from getpass import getpass
+from itertools import chain
 from operator import attrgetter
 
 from dateutil import parser
@@ -156,6 +157,35 @@ def determine_username(user):
     else:
         raise Exception(f"Failed to determine username of {user}")
     return username
+
+
+def determine_default_links(link_types_per_name):
+    default_links = []
+    for link_types in ({'Blocker': 'inward', 'Blocks': 'inward'}, {'Dependency': 'outward', 'Dependent': 'outward'}):
+        for link_type_name, direction in link_types.items():
+            if link_type_name in link_types_per_name:
+                link = getattr(link_types_per_name[link_type_name], direction)
+                default_links.append(link)
+                break
+        else:
+            logging.warning("Failed to find any of these default jira-juggler issue link types in your Jira project "
+                            f"configuration: {list(link_types)}. Use --links if you think this is a problem.")
+    return default_links
+
+
+def determine_links(jira_link_types, input_links):
+    valid_links = set()
+    if input_links is None:
+        link_types_per_name = {link_type.name: link_type for link_type in jira_link_types}
+        valid_links = determine_default_links(link_types_per_name)
+    elif input_links:
+        unique_input_links = set(input_links)
+        all_jira_links = chain.from_iterable((link_type.inward, link_type.outward) for link_type in jira_link_types)
+        missing_links = unique_input_links.difference(all_jira_links)
+        if missing_links:
+            logging.warning(f"Failed to find links {missing_links} in your configuration in Jira")
+        valid_links = unique_input_links - missing_links
+    return valid_links
 
 
 class JugglerTaskProperty(ABC):
@@ -304,7 +334,7 @@ class JugglerTaskEffort(JugglerTaskProperty):
 
         Args:
             task (JugglerTask): Task to which the property belongs
-            tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
+            tasks (list): Modifiable list of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
         """
         if self.value == 0:
@@ -321,20 +351,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
     DEFAULT_NAME = 'depends'
     DEFAULT_VALUE = []
     PREFIX = '!'
-
-    @property
-    def value(self):
-        """list: Value of the task juggler property"""
-        return self._value
-
-    @value.setter
-    def value(self, value):
-        """Sets value for task juggler property (deep copy)
-
-        Args:
-            value (object): New value of the property
-        """
-        self._value = list(value)
+    links = set()
 
     def append_value(self, value):
         """Appends value for task juggler property
@@ -342,7 +359,8 @@ class JugglerTaskDepends(JugglerTaskProperty):
         Args:
             value (object): Value to append to the property
         """
-        self.value.append(value)
+        if value not in self.value:
+            self.value.append(value)
 
     def load_from_jira_issue(self, jira_issue):
         """Loads the object with data from a Jira issue
@@ -350,12 +368,12 @@ class JugglerTaskDepends(JugglerTaskProperty):
         Args:
             jira_issue (jira.resources.Issue): The Jira issue to load from
         """
-        self.value = self.DEFAULT_VALUE
+        self.value = list(self.DEFAULT_VALUE)
         if hasattr(jira_issue.fields, 'issuelinks'):
             for link in jira_issue.fields.issuelinks:
-                if hasattr(link, 'inwardIssue') and link.type.name == 'Blocker':
+                if hasattr(link, 'inwardIssue') and link.type.inward in self.links:
                     self.append_value(to_identifier(link.inwardIssue.key))
-                if hasattr(link, 'outwardIssue') and link.type.name in ('Dependency', 'Dependent'):
+                elif hasattr(link, 'outwardIssue') and link.type.outward in self.links:
                     self.append_value(to_identifier(link.outwardIssue.key))
 
     def validate(self, task, tasks):
@@ -366,8 +384,9 @@ class JugglerTaskDepends(JugglerTaskProperty):
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
         """
-        for val in self.value:
-            if val not in [to_identifier(tsk.key) for tsk in tasks]:
+        task_ids = [to_identifier(tsk.key) for tsk in tasks]
+        for val in list(self.value):
+            if val not in task_ids:
                 logging.warning('Removing link to %s for %s, as not within scope', val, task.key)
                 self.value.remove(val)
 
@@ -457,18 +476,17 @@ task {id} "{description}" {{
         self.properties['depends'] = JugglerTaskDepends(jira_issue)
         self.properties['time'] = JugglerTaskTime()
 
-    def validate(self, tasks):
+    def validate(self, tasks, property_identifier):
         """Validates (and corrects) the current task
 
         Args:
             tasks (list): List of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
+            property_identifier (str): Identifier of property type
         """
         if self.key == self.DEFAULT_KEY:
             logging.error('Found a task which is not initialized')
-
-        for task_property in self.properties.values():
-            task_property.validate(self, tasks)
+        self.properties[property_identifier].validate(self, tasks)
 
     def __str__(self):
         """Converts the JugglerTask to the task juggler syntax
@@ -525,7 +543,7 @@ task {id} "{description}" {{
 class JiraJuggler:
     """Class for task-juggling Jira results"""
 
-    def __init__(self, endpoint, user, token, query):
+    def __init__(self, endpoint, user, token, query, links=None):
         """Constructs a JIRA juggler object
 
         Args:
@@ -533,6 +551,7 @@ class JiraJuggler:
             user (str): Email address (or username)
             token (str): API token (or password)
             query (str): The query to run
+            links (set/None): List of issue link type inward/outward links; None to use the default configuration
         """
         global id_to_username_mapping
         id_to_username_mapping = {}
@@ -544,6 +563,9 @@ class JiraJuggler:
         self.query = query
         self.issue_count = 0
 
+        all_jira_link_types = jirahandle.issue_link_types()
+        JugglerTaskDepends.links = determine_links(all_jira_link_types, links)
+
     @staticmethod
     def validate_tasks(tasks):
         """Validates (and corrects) tasks
@@ -551,8 +573,9 @@ class JiraJuggler:
         Args:
             tasks (list): List of JugglerTask instances to validate
         """
-        for task in list(tasks):
-            task.validate(tasks)
+        for property_identifier in ('allocate', 'effort', 'depends', 'time'):
+            for task in list(tasks):
+                task.validate(tasks, property_identifier)
 
     def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name='', **kwargs):
         """Loads issues from Jira
@@ -634,7 +657,7 @@ class JiraJuggler:
             time_property = task.properties['time']
 
             if task.is_resolved:
-                depends_property.clear()  # don't output any links in JIRA
+                depends_property.clear()  # don't output any links from JIRA
                 time_property.name = 'end'
                 time_property.value = task.resolved_at_repr
             else:
@@ -783,6 +806,11 @@ def main():
                         help='Query to perform on JIRA server')
     argpar.add_argument('-o', '--output', default=DEFAULT_OUTPUT,
                         help='Output .tjp file for task-juggler')
+    argpar.add_argument('-L', '--links', nargs='*',
+                        help="Specific issue link type inward/outward links to consider for TaskJuggler's 'depends' "
+                        "keyword, e.g. 'depends on'. "
+                        "By default, link types Dependency/Dependent (outward only) and Blocker/Blocks (inwardy only) "
+                        "are considered.  Specify an empty value to ignore Jira issue links altogether.")
     argpar.add_argument('-D', '--depend-on-preceding', action='store_true',
                         help='Flag to let tasks depend on the preceding task with the same assignee')
     argpar.add_argument('-s', '--sort-on-sprint', dest='sprint_field_name', default='',
@@ -795,12 +823,11 @@ def main():
                         help='Specify the offset-naive date to use for calculation as current date. If no value is '
                              'specified, the current value of the system clock is used.')
     args = argpar.parse_args()
-
     set_logging_level(args.loglevel)
 
     user, token = fetch_credentials()
     endpoint = config('JIRA_API_ENDPOINT', default=DEFAULT_JIRA_URL)
-    JUGGLER = JiraJuggler(endpoint, user, token, args.query)
+    JUGGLER = JiraJuggler(endpoint, user, token, args.query, links=args.links)
 
     JUGGLER.juggle(
         output=args.output,
