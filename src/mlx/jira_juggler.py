@@ -593,9 +593,37 @@ class JiraJuggler:
         while busy:
             try:
                 issues = jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
-                                                  expand='changelog')
-            except JIRAError:
-                logging.error('Invalid Jira query "%s"', self.query)
+                                            expand='changelog')
+            except JIRAError as err:
+                logging.error('Failed to query JIRA: %s', err)
+                if err.status_code == 401:
+                    logging.error('Please check your JIRA credentials in the .env file or environment variables.')
+                elif err.status_code == 403:
+                    logging.error('You do not have permission to access this JIRA project or query.')
+                elif err.status_code == 404:
+                    logging.error('The JIRA endpoint is not found. Please check the endpoint URL.')
+                elif err.status_code == 400:
+                    # Parse and display the specific JQL errors more clearly
+                    try:
+                        error_data = err.response.json()
+                        if 'errorMessages' in error_data:
+                            for error_msg in error_data['errorMessages']:
+                                logging.error('JIRA query error: %s', error_msg)
+
+                            # Provide specific guidance based on common errors
+                            for error_msg in error_data['errorMessages']:
+                                if "Field 'component' does not exist" in error_msg:
+                                    logging.error("TIP: Check if 'component' is the correct field name for your JIRA instance")
+                                elif "Not able to sort using field" in error_msg:
+                                    logging.error("TIP: The sort field may not be available or you may need special permissions")
+                                elif "does not exist for the field 'project'" in error_msg:
+                                    logging.error("TIP: Verify the project key exists and you have access to it")
+                    except Exception:
+                        pass  # Fall back to generic error if JSON parsing fails
+
+                    logging.error('Invalid JQL query syntax. Please check your query.')
+                else:
+                    logging.error('An unexpected error occurred: %s', err)
                 return None
 
             if len(issues) <= 0:
