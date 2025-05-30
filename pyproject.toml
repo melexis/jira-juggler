@@ -2,8 +2,12 @@
 requires = ["setuptools>=42", "wheel", "setuptools_scm>=7.1.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["src/"]
+include = ["mlx.jira_juggler"]
+
 [tool.setuptools_scm]
-write_to = "src/mlx/__version__.py"
+write_to = "src/mlx/jira_juggler/_version.py"
 
 [project]
 name = "mlx.jira_juggler"
@@ -12,7 +16,7 @@ authors = [
     {name = "Jasper Craeghs", email = "jce@melexis.com"}
 ]
 readme = "README.rst"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 license = {text = "Apache License, Version 2.0"}
 dynamic = ["version"]
 classifiers = [
@@ -49,15 +53,8 @@ Homepage = "https://github.com/melexis/jira-juggler"
 Repository = "https://github.com/melexis/jira-juggler"
 
 [project.scripts]
-jira-juggler = "mlx.jira_juggler:entrypoint"
+jira-juggler = "mlx.jira_juggler.jira_juggler:entrypoint"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
-packages = ["mlx"]
 
 [tool.setuptools.package-data]
 "*" = ["*"]
-
-[tool.setuptools.packages.find]
-where = ["src"]
-namespace-packages = ["mlx"]

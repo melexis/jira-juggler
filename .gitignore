@@ -96,4 +96,4 @@ pip-selfcheck.json
 *.swp
 
 # Offline version file
-src/mlx/__version__.py
+src/mlx/jira_juggler/_version.py
