@@ -593,7 +593,7 @@ class JiraJuggler:
         while busy:
             try:
                 issues = jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
-                                            expand='changelog')
+                                                  expand='changelog')
             except JIRAError as err:
                 logging.error('Failed to query JIRA: %s', err)
                 if err.status_code == 401:
