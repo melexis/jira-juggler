@@ -23,7 +23,7 @@ except ImportError:
         pip.main(['install', 'mock'])
         from mock import MagicMock, patch, call
 
-import mlx.jira_juggler as dut
+import mlx.jira_juggler.jira_juggler as dut
 
 try:
     from jira import JIRA
