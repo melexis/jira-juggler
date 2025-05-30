@@ -167,7 +167,7 @@ class TestJiraJuggler(unittest.TestCase):
     def SetUp(self):
         '''SetUp is run before each test to provide clean working environment'''
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_empty_query_result(self, jira_mock):
         '''Test for Jira not returning any task on the given query'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -179,7 +179,7 @@ class TestJiraJuggler(unittest.TestCase):
         juggler.juggle()
         jira_mock_object.search_issues.assert_called_once_with(self.QUERY, maxResults=dut.JIRA_PAGE_SIZE, startAt=0, expand='changelog')
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_single_task_happy(self, jira_mock):
         '''Test for simple happy flow: single task is returned by Jira Server'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -203,7 +203,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
         self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_single_task_email_happy(self, jira_mock):
         '''Test for simple happy flow: single task is returned by Jira Cloud'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -228,7 +228,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
         self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_single_task_email_hidden(self, jira_mock):
         '''Test for error logging when user has restricted email visibility in Jira Cloud'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -254,7 +254,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
         self.assertEqual(self.DEPENDS1, issues[0].properties['depends'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_single_task_minimal(self, jira_mock):
         '''Test for minimal happy flow: single task with minimal content is returned by Jira
 
@@ -276,7 +276,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(dut.JugglerTaskEffort.DEFAULT_VALUE, issues[0].properties['effort'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_estimate_too_low(self, jira_mock):
         '''Test for correcting an estimate which is too low'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -296,7 +296,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual(dut.JugglerTaskEffort.MINIMAL_VALUE, issues[0].properties['effort'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_broken_depends(self, jira_mock):
         '''Test for removing a broken link to a dependant task'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -317,7 +317,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.SUMMARY1, issues[0].summary)
         self.assertEqual([], issues[0].properties['depends'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_task_depends(self, jira_mock):
         '''Test for dual happy flow: one task depends on the other'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -352,7 +352,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[1].properties['effort'].value)
         self.assertEqual(self.DEPENDS2, issues[1].properties['depends'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_task_double_depends(self, jira_mock):
         '''Test for extended happy flow: one task depends on two others'''
         jira_mock_object = MagicMock(spec=JIRA)
@@ -397,7 +397,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE3 / self.SECS_PER_DAY, issues[2].properties['effort'].value)
         self.assertEqual(self.DEPENDS3, issues[2].properties['depends'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_resolved_task(self, jira_mock):
         '''Test that the last assignee in the Analyzed state is used and the Time Spent is used as effort
         Test that the most recent transition to the Approved/Resolved state is used to mark the end'''
@@ -465,7 +465,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ESTIMATE2 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
         self.assertEqual('2022-05-25 14:07:11.974000+02:00', str(issues[0].resolved_at_date))
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_closed_task(self, jira_mock):
         '''
         Test that a change of assignee after Resolved status has no effect and that the original time estimate is
@@ -506,7 +506,7 @@ class TestJiraJuggler(unittest.TestCase):
         self.assertEqual(self.ASSIGNEE1, issues[0].properties['allocate'].value)
         self.assertEqual(self.ESTIMATE1 / self.SECS_PER_DAY, issues[0].properties['effort'].value)
 
-    @patch('mlx.jira_juggler.JIRA', autospec=True)
+    @patch('mlx.jira_juggler.jira_juggler.JIRA', autospec=True)
     def test_depend_on_preceding(self, jira_mock):
         '''Test --depends-on-preceding, --weeklymax and --current-date options'''
         jira_mock_object = MagicMock(spec=JIRA)
