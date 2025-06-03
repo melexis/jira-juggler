@@ -595,7 +595,7 @@ class JiraJuggler:
                 issues = jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
                                                   expand='changelog')
             except JIRAError as err:
-                logging.error('Failed to query JIRA: %s', err)
+                logging.error(f'Failed to query JIRA: {err}')
                 if err.status_code == 401:
                     logging.error('Please check your JIRA credentials in the .env file or environment variables.')
                 elif err.status_code == 403:
@@ -608,13 +608,13 @@ class JiraJuggler:
                         error_data = err.response.json()
                         if 'errorMessages' in error_data:
                             for error_msg in error_data['errorMessages']:
-                                logging.error('JIRA query error: %s', error_msg)
+                                logging.error(f'JIRA query error: {error_msg}')
                     except Exception:
                         pass  # Fall back to generic error if JSON parsing fails
 
                     logging.error('Invalid JQL query syntax. Please check your query.')
                 else:
-                    logging.error('An unexpected error occurred: %s', err)
+                    logging.error(f'An unexpected error occurred: {err}')
                 return None
 
             if len(issues) <= 0:
@@ -622,7 +622,7 @@ class JiraJuggler:
 
             self.issue_count += len(issues)
             for issue in issues:
-                logging.debug('Retrieved %s: %s', issue.key, issue.fields.summary)
+                logging.debug(f'Retrieved {issue.key}: {issue.fields.summary}')
                 tasks.append(JugglerTask(issue))
 
         self.validate_tasks(tasks)
