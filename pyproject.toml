@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=77", "wheel", "setuptools_scm>=7.1.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src/"]
+include = ["mlx.jira_juggler"]
+
+[tool.setuptools_scm]
+write_to = "src/mlx/jira_juggler/_version.py"
+
+[project]
+name = "mlx.jira_juggler"
+description = "A Python script for extracting data from Jira, and converting to TaskJuggler (tj3) output"
+authors = [
+    {name = "Jasper Craeghs", email = "jce@melexis.com"}
+]
+readme = "README.rst"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: Unix",
+    "Operating System :: POSIX",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+keywords = [
+    "Jira",
+    "taskjuggler",
+    "gantt",
+    "project planning",
+    "planning",
+    "software engineering",
+]
+dependencies = [
+    "jira>=3.8",
+    "python-dateutil>=2.8.0,<3.0",
+    "natsort>=8.3.1",
+    "python-decouple",
+]
+
+[project.urls]
+Homepage = "https://github.com/melexis/jira-juggler"
+Repository = "https://github.com/melexis/jira-juggler"
+
+[project.scripts]
+jira-juggler = "mlx.jira_juggler.jira_juggler:entrypoint"
+
+[tool.setuptools.package-data]
+"*" = ["*"]

@@ -594,8 +594,27 @@ class JiraJuggler:
             try:
                 issues = jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
                                                   expand='changelog')
-            except JIRAError:
-                logging.error('Invalid Jira query "%s"', self.query)
+            except JIRAError as err:
+                logging.error(f'Failed to query JIRA: {err}')
+                if err.status_code == 401:
+                    logging.error('Please check your JIRA credentials in the .env file or environment variables.')
+                elif err.status_code == 403:
+                    logging.error('You do not have permission to access this JIRA project or query.')
+                elif err.status_code == 404:
+                    logging.error('The JIRA endpoint is not found. Please check the endpoint URL.')
+                elif err.status_code == 400:
+                    # Parse and display the specific JQL errors more clearly
+                    try:
+                        error_data = err.response.json()
+                        if 'errorMessages' in error_data:
+                            for error_msg in error_data['errorMessages']:
+                                logging.error(f'JIRA query error: {error_msg}')
+                    except Exception:
+                        pass  # Fall back to generic error if JSON parsing fails
+
+                    logging.error('Invalid JQL query syntax. Please check your query.')
+                else:
+                    logging.error(f'An unexpected error occurred: {err}')
                 return None
 
             if len(issues) <= 0:
@@ -603,7 +622,7 @@ class JiraJuggler:
 
             self.issue_count += len(issues)
             for issue in issues:
-                logging.debug('Retrieved %s: %s', issue.key, issue.fields.summary)
+                logging.debug(f'Retrieved {issue.key}: {issue.fields.summary}')
                 tasks.append(JugglerTask(issue))
 
         self.validate_tasks(tasks)
