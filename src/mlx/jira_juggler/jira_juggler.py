@@ -609,15 +609,6 @@ class JiraJuggler:
                         if 'errorMessages' in error_data:
                             for error_msg in error_data['errorMessages']:
                                 logging.error('JIRA query error: %s', error_msg)
-
-                            # Provide specific guidance based on common errors
-                            for error_msg in error_data['errorMessages']:
-                                if "Field 'component' does not exist" in error_msg:
-                                    logging.error("TIP: Check if 'component' is the correct field name for your JIRA instance")
-                                elif "Not able to sort using field" in error_msg:
-                                    logging.error("TIP: The sort field may not be available or you may need special permissions")
-                                elif "does not exist for the field 'project'" in error_msg:
-                                    logging.error("TIP: Verify the project key exists and you have access to it")
                     except Exception:
                         pass  # Fall back to generic error if JSON parsing fails
 
