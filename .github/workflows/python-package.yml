@@ -27,7 +27,7 @@ jobs:
     - name: Run test
       run: tox -e py
     - name: Upload coverage to Codecov
-      if: matrix.python-version == 3.13
+      if: matrix.python-version == '3.13'
       uses: codecov/codecov-action@v5
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
