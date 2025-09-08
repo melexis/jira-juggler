@@ -444,17 +444,33 @@ class JugglerTask:
 task {id} "{description}" {{
 {tab}Jira "{key}"
 {props}
+{children}
+}}
+'''
+    NESTED_TEMPLATE = '''
+task {id} "{description}" {{
+{tab}Jira "{key}"
+{props}
+{children_content}
 }}
 '''
 
     def __init__(self, jira_issue=None):
-        logging.info('Create JugglerTask for %s', jira_issue.key)
+        if jira_issue:
+            logging.info('Create JugglerTask for %s', jira_issue.key)
 
         self.key = self.DEFAULT_KEY
         self.summary = self.DEFAULT_SUMMARY
         self.properties = {}
         self.issue = None
         self._resolved_at_date = None
+
+        # Epic and parent-child relationship attributes
+        self.parent_key = None
+        self.epic_key = None
+        self.children = []
+        self.is_epic = False
+        self.is_subtask = False
 
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
@@ -469,6 +485,10 @@ task {id} "{description}" {{
         self.issue = jira_issue
         summary = jira_issue.fields.summary.replace('\"', '\\\"')
         self.summary = (summary[:self.MAX_SUMMARY_LENGTH] + '...') if len(summary) > self.MAX_SUMMARY_LENGTH else summary
+
+        # Detect issue type and relationships
+        self._detect_hierarchy_relationships(jira_issue)
+
         if self.is_resolved:
             self.resolved_at_date = self.determine_resolved_at_date()
         self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
@@ -495,11 +515,28 @@ task {id} "{description}" {{
             str: String representation of the task in juggler syntax
         """
         props = "".join(map(str, self.properties.values()))
-        return self.TEMPLATE.format(id=to_identifier(self.key),
-                                    key=self.key,
-                                    tab=TAB,
-                                    description=self.summary.replace('\"', '\\\"'),
-                                    props=props)
+
+        # If this task has children, use nested template
+        if self.children:
+            children_content = ""
+            for child in self.children:
+                # Indent child tasks
+                child_str = str(child).strip()
+                children_content += "\n" + "\n".join(TAB + line for line in child_str.split("\n") if line.strip())
+
+            return self.NESTED_TEMPLATE.format(id=to_identifier(self.key),
+                                               key=self.key,
+                                               tab=TAB,
+                                               description=self.summary.replace('\"', '\\\"'),
+                                               props=props,
+                                               children_content=children_content)
+        else:
+            return self.TEMPLATE.format(id=to_identifier(self.key),
+                                        key=self.key,
+                                        tab=TAB,
+                                        description=self.summary.replace('\"', '\\\"'),
+                                        props=props,
+                                        children="")
 
     @property
     def is_resolved(self):
@@ -539,6 +576,63 @@ task {id} "{description}" {{
                         closed_at_date = parser.isoparse(change.created)
         return closed_at_date
 
+    def _detect_hierarchy_relationships(self, jira_issue):
+        """Detects epic and parent-child relationships from Jira issue
+
+        Args:
+            jira_issue (jira.resources.Issue): The Jira issue to analyze
+        """
+        # Check if this is an Epic
+        issue_type = getattr(jira_issue.fields, 'issuetype', None)
+        if issue_type and hasattr(issue_type, 'name'):
+            self.is_epic = issue_type.name.lower() == 'epic'
+            self.is_subtask = issue_type.name.lower() == 'sub-task' or getattr(issue_type, 'subtask', False)
+
+        # Check for parent relationship (subtasks)
+        if hasattr(jira_issue.fields, 'parent') and jira_issue.fields.parent:
+            self.parent_key = jira_issue.fields.parent.key
+
+        # Check for epic link (various possible field names)
+        epic_link_fields = ['epic', 'epiclink', 'customfield_10014', 'customfield_10008']  # Common epic link fields
+        for field_name in epic_link_fields:
+            if hasattr(jira_issue.fields, field_name):
+                epic_field = getattr(jira_issue.fields, field_name)
+                if epic_field:
+                    if hasattr(epic_field, 'key'):
+                        self.epic_key = epic_field.key
+                    elif isinstance(epic_field, str):
+                        self.epic_key = epic_field
+                    break
+
+    def add_child(self, child_task):
+        """Add a child task to this task
+
+        Args:
+            child_task (JugglerTask): Child task to add
+        """
+        if child_task not in self.children:
+            self.children.append(child_task)
+
+    def calculate_rolled_up_effort(self):
+        """Calculate effort including children for epics and parent tasks
+
+        Returns:
+            float: Total effort including children
+        """
+        base_effort = self.properties['effort'].value if not self.properties['effort'].is_empty else 0
+
+        # For epics and parent tasks, include child effort
+        if self.children:
+            child_effort = sum(child.calculate_rolled_up_effort() for child in self.children)
+            # If this is a container task (epic or parent with children),
+            # the effort should be the sum of children unless it has its own effort
+            if self.is_epic or (self.children and base_effort == JugglerTaskEffort.DEFAULT_VALUE):
+                return child_effort
+            else:
+                return base_effort + child_effort
+
+        return base_effort
+
 
 class JiraJuggler:
     """Class for task-juggling Jira results"""
@@ -577,7 +671,7 @@ class JiraJuggler:
             for task in list(tasks):
                 task.validate(tasks, property_identifier)
 
-    def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name='', **kwargs):
+    def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name='', enable_epics=False, **kwargs):
         """Loads issues from Jira
 
         Args:
@@ -626,12 +720,66 @@ class JiraJuggler:
                 tasks.append(JugglerTask(issue))
 
         self.validate_tasks(tasks)
+
+        # Build hierarchical relationships if enabled
+        if enable_epics:
+            tasks = self.build_hierarchical_tasks(tasks)
+
         if sprint_field_name:
             self.sort_tasks_on_sprint(tasks, sprint_field_name)
         tasks.sort(key=cmp_to_key(self.compare_status))
         if depend_on_preceding:
             self.link_to_preceding_task(tasks, **kwargs)
         return tasks
+
+    def build_hierarchical_tasks(self, tasks):
+        """Builds hierarchical relationships between tasks (epics, parents, children)
+
+        Args:
+            tasks (list): List of JugglerTask instances
+
+        Returns:
+            list: List of top-level JugglerTask instances with child relationships established
+        """
+        # Create mappings for quick lookups
+        task_by_key = {task.key: task for task in tasks}
+
+        # Build parent-child relationships
+        for task in tasks:
+            # Handle subtask -> parent relationship
+            if task.parent_key and task.parent_key in task_by_key:
+                parent_task = task_by_key[task.parent_key]
+                parent_task.add_child(task)
+                logging.debug(f'Added {task.key} as child of parent {parent_task.key}')
+
+            # Handle story/task -> epic relationship
+            elif task.epic_key and task.epic_key in task_by_key:
+                epic_task = task_by_key[task.epic_key]
+                epic_task.add_child(task)
+                logging.debug(f'Added {task.key} as child of epic {epic_task.key}')
+
+        # Update effort calculations for parent tasks
+        for task in tasks:
+            if task.children:
+                rolled_up_effort = task.calculate_rolled_up_effort()
+                task.properties['effort'].value = rolled_up_effort
+                logging.debug(f'Updated effort for {task.key} to {rolled_up_effort}d (including children)')
+
+        # Return only top-level tasks (those without parents)
+        top_level_tasks = []
+        for task in tasks:
+            # A task is top-level if it doesn't have a parent/epic relationship with another task in our set
+            is_child = False
+            if task.parent_key and task.parent_key in task_by_key:
+                is_child = True
+            elif task.epic_key and task.epic_key in task_by_key:
+                is_child = True
+
+            if not is_child:
+                top_level_tasks.append(task)
+
+        logging.info(f'Built hierarchy: {len(tasks)} total tasks, {len(top_level_tasks)} top-level tasks')
+        return top_level_tasks
 
     def juggle(self, output=None, **kwargs):
         """Queries JIRA and generates task-juggler output from given issues
@@ -841,6 +989,9 @@ def main():
     argpar.add_argument('-c', '--current-date', default=datetime.now(), type=parser.isoparse,
                         help='Specify the offset-naive date to use for calculation as current date. If no value is '
                              'specified, the current value of the system clock is used.')
+    argpar.add_argument('-E', '--enable-epics', action='store_true',
+                        help='Enable support for Jira Epics and parent-child task hierarchies. '
+                             'This will create nested TaskJuggler tasks for epics with their child issues.')
     args = argpar.parse_args()
     set_logging_level(args.loglevel)
 
@@ -853,7 +1004,8 @@ def main():
         depend_on_preceding=args.depend_on_preceding,
         sprint_field_name=args.sprint_field_name,
         weeklymax=args.weeklymax,
-        current_date=args.current_date
+        current_date=args.current_date,
+        enable_epics=args.enable_epics
     )
     return 0
 
