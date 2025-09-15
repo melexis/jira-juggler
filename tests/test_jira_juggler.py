@@ -1028,8 +1028,11 @@ class TestJiraJuggler(unittest.TestCase):
 
             # Verify all expected patterns are in the output
             for pattern in expected_patterns:
-                self.assertIn(pattern, generated_output,
-                            f"Expected pattern '{pattern}' not found in generated output")
+                self.assertIn(
+                    pattern,
+                    generated_output,
+                    f"Expected pattern '{pattern}' not found in generated output",
+                )
 
             # Verify the structure is properly nested (check indentation)
             lines = generated_output.split('\n')
@@ -1040,13 +1043,17 @@ class TestJiraJuggler(unittest.TestCase):
                     epic_found = True
                 elif epic_found and 'task STORY_1' in line:
                     # Story should be indented under epic
-                    self.assertTrue(line.startswith('    '),
-                                  "Story task should be indented under epic")
+                    self.assertTrue(
+                        line.startswith('    '),
+                        "Story task should be indented under epic",
+                    )
                     story_found = True
                 elif story_found and 'task SUB_1' in line:
                     # Subtask should be double-indented
-                    self.assertTrue(line.startswith('        '),
-                                  "Subtask should be double-indented under story")
+                    self.assertTrue(
+                        line.startswith('        '),
+                        "Subtask should be double-indented under story",
+                    )
 
         finally:
             # Cleanup
@@ -1139,8 +1146,15 @@ class TestJiraJuggler(unittest.TestCase):
                                            parent_key='STORY-1', issue_type='Sub-task')
 
         jirahandle = jira_mock.return_value
-        jirahandle.enhanced_search_issues.return_value = [epic1_issue, epic2_issue, story1_issue, story2_issue,
-                                               standalone_issue, sub1_issue, sub2_issue]
+        jirahandle.enhanced_search_issues.return_value = [
+            epic1_issue,
+            epic2_issue,
+            story1_issue,
+            story2_issue,
+            standalone_issue,
+            sub1_issue,
+            sub2_issue,
+        ]
         jirahandle.issue_link_types.return_value = ISSUE_LINK_TYPES
 
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
