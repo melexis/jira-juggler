@@ -209,12 +209,18 @@ class TestJiraJuggler(unittest.TestCase):
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.ESTIMATE1, None, None],
-                                                                             self.DEPENDS1)
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [
+            [
+                self._mock_jira_issue(
+                    self.KEY1,
+                    self.SUMMARY1,
+                    self.ASSIGNEE1,
+                    [self.ESTIMATE1, None, None],
+                    self.DEPENDS1,
+                )
+            ],
+            [],
+        ]
         issues = juggler.juggle()
         self.assertEqual(jira_mock_object.enhanced_search_issues.call_count, 1)
         self.assertEqual(1, len(issues))
@@ -232,13 +238,19 @@ class TestJiraJuggler(unittest.TestCase):
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.ESTIMATE1, None, None],
-                                                                             self.DEPENDS1,
-                                                                             email=self.EMAIL1)
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [
+            [
+                self._mock_jira_issue(
+                    self.KEY1,
+                    self.SUMMARY1,
+                    self.ASSIGNEE1,
+                    [self.ESTIMATE1, None, None],
+                    self.DEPENDS1,
+                    email=self.EMAIL1,
+                )
+            ],
+            [],
+        ]
         issues = juggler.juggle()
         self.assertEqual(jira_mock_object.enhanced_search_issues.call_count, 1)
         self.assertEqual(1, len(issues))
@@ -263,7 +275,12 @@ class TestJiraJuggler(unittest.TestCase):
                                              self.DEPENDS1,
                                              email=self.EMAIL1)
         mocked_issue.fields.assignee.emailAddress = ''
-        jira_mock_object.enhanced_search_issues.side_effect = [[mocked_issue], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [
+            [
+                mocked_issue,
+            ],
+            [],
+        ]
         issues = juggler.juggle()
         self.assertEqual(jira_mock_object.enhanced_search_issues.call_count, 1)
         self.assertEqual(1, len(issues))
@@ -284,9 +301,15 @@ class TestJiraJuggler(unittest.TestCase):
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1)
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [
+            [
+                self._mock_jira_issue(
+                    self.KEY1,
+                    self.SUMMARY1,
+                )
+            ],
+            [],
+        ]
         issues = juggler.juggle()
         self.assertEqual(jira_mock_object.enhanced_search_issues.call_count, 1)
         self.assertEqual(1, len(issues))
@@ -302,10 +325,16 @@ class TestJiraJuggler(unittest.TestCase):
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             estimates=[1, None, None])
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [
+            [
+                self._mock_jira_issue(
+                    self.KEY1,
+                    self.SUMMARY1,
+                    estimates=[1, None, None],
+                )
+            ],
+            [],
+        ]
         issues = juggler.juggle()
         self.assertEqual(jira_mock_object.enhanced_search_issues.call_count, 1)
         self.assertEqual(1, len(issues))
@@ -322,10 +351,16 @@ class TestJiraJuggler(unittest.TestCase):
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             depends=['non-existing-key-of-issue'])
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [
+            [
+                self._mock_jira_issue(
+                    self.KEY1,
+                    self.SUMMARY1,
+                    depends=['non-existing-key-of-issue'],
+                )
+            ],
+            [],
+        ]
         issues = juggler.juggle()
         self.assertEqual(jira_mock_object.enhanced_search_issues.call_count, 1)
         self.assertEqual(1, len(issues))
@@ -342,17 +377,25 @@ class TestJiraJuggler(unittest.TestCase):
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.ESTIMATE1, None, None],
-                                                                             self.DEPENDS1),
-                                                       self._mock_jira_issue(self.KEY2,
-                                                                             self.SUMMARY2,
-                                                                             self.ASSIGNEE2,
-                                                                             [self.ESTIMATE2, None, None],
-                                                                             self.DEPENDS2),
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [
+            [
+                self._mock_jira_issue(
+                    self.KEY1,
+                    self.SUMMARY1,
+                    self.ASSIGNEE1,
+                    [self.ESTIMATE1, None, None],
+                    self.DEPENDS1,
+                ),
+                self._mock_jira_issue(
+                    self.KEY2,
+                    self.SUMMARY2,
+                    self.ASSIGNEE2,
+                    [self.ESTIMATE2, None, None],
+                    self.DEPENDS2,
+                ),
+            ],
+            [],
+        ]
         issues = juggler.juggle()
         self.assertEqual(jira_mock_object.enhanced_search_issues.call_count, 1)
         self.assertEqual(2, len(issues))
@@ -376,22 +419,32 @@ class TestJiraJuggler(unittest.TestCase):
         juggler = dut.JiraJuggler(self.URL, self.USER, self.PASSWD, self.QUERY)
         self.assertEqual(self.QUERY, juggler.query)
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.ESTIMATE1, None, None],
-                                                                             self.DEPENDS1),
-                                                       self._mock_jira_issue(self.KEY2,
-                                                                             self.SUMMARY2,
-                                                                             self.ASSIGNEE2,
-                                                                             [self.ESTIMATE2, None, None],
-                                                                             self.DEPENDS2),
-                                                       self._mock_jira_issue(self.KEY3,
-                                                                             self.SUMMARY3,
-                                                                             self.ASSIGNEE3,
-                                                                             [self.ESTIMATE3, None, None],
-                                                                             self.DEPENDS3),
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [
+            [
+                self._mock_jira_issue(
+                    self.KEY1,
+                    self.SUMMARY1,
+                    self.ASSIGNEE1,
+                    [self.ESTIMATE1, None, None],
+                    self.DEPENDS1,
+                ),
+                self._mock_jira_issue(
+                    self.KEY2,
+                    self.SUMMARY2,
+                    self.ASSIGNEE2,
+                    [self.ESTIMATE2, None, None],
+                    self.DEPENDS2,
+                ),
+                self._mock_jira_issue(
+                    self.KEY3,
+                    self.SUMMARY3,
+                    self.ASSIGNEE3,
+                    [self.ESTIMATE3, None, None],
+                    self.DEPENDS3,
+                ),
+            ],
+            [],
+        ]
         issues = juggler.juggle()
         self.assertEqual(jira_mock_object.enhanced_search_issues.call_count, 1)
         self.assertEqual(3, len(issues))
@@ -676,11 +729,11 @@ class TestJiraJuggler(unittest.TestCase):
         """Test detection of epic and parent-child relationships"""
         # Create mock issues: Epic -> Story -> Subtask
         epic_issue = self._mock_jira_issue('EPIC-1', 'Epic Issue', 'testuser', [3 * self.SECS_PER_DAY, None, None],
-                                          issue_type='Epic')
+                                           issue_type='Epic')
         story_issue = self._mock_jira_issue('STORY-1', 'Story Issue', 'testuser', [1 * self.SECS_PER_DAY, None, None],
-                                           epic_key='EPIC-1', issue_type='Story')
+                                            epic_key='EPIC-1', issue_type='Story')
         subtask_issue = self._mock_jira_issue('SUB-1', 'Subtask Issue', 'testuser', [0.5 * self.SECS_PER_DAY, None, None],
-                                             parent_key='STORY-1', issue_type='Sub-task')
+                                              parent_key='STORY-1', issue_type='Sub-task')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic_issue, story_issue, subtask_issue]
@@ -714,13 +767,13 @@ class TestJiraJuggler(unittest.TestCase):
         """Test building of hierarchical task structures"""
         # Create mock issues
         epic_issue = self._mock_jira_issue('EPIC-1', 'Test Epic', 'testuser', [5 * self.SECS_PER_DAY, None, None],
-                                          issue_type='Epic')
+                                           issue_type='Epic')
         story1_issue = self._mock_jira_issue('STORY-1', 'Story 1', 'testuser', [2 * self.SECS_PER_DAY, None, None],
-                                            epic_key='EPIC-1', issue_type='Story')
+                                             epic_key='EPIC-1', issue_type='Story')
         story2_issue = self._mock_jira_issue('STORY-2', 'Story 2', 'testuser', [3 * self.SECS_PER_DAY, None, None],
-                                            epic_key='EPIC-1', issue_type='Story')
+                                             epic_key='EPIC-1', issue_type='Story')
         subtask_issue = self._mock_jira_issue('SUB-1', 'Subtask 1', 'testuser', [1 * self.SECS_PER_DAY, None, None],
-                                             parent_key='STORY-1', issue_type='Sub-task')
+                                              parent_key='STORY-1', issue_type='Sub-task')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic_issue, story1_issue, story2_issue, subtask_issue]
@@ -752,13 +805,13 @@ class TestJiraJuggler(unittest.TestCase):
         """Test effort rollup from children to parents"""
         # Create hierarchy with known effort values
         epic_issue = self._mock_jira_issue('EPIC-1', 'Test Epic', 'testuser', [0, None, None],
-                                          issue_type='Epic')  # Epic has no effort initially
+                                           issue_type='Epic')  # Epic has no effort initially
         story_issue = self._mock_jira_issue('STORY-1', 'Story 1', 'testuser', [2 * self.SECS_PER_DAY, None, None],
-                                           epic_key='EPIC-1', issue_type='Story')
+                                            epic_key='EPIC-1', issue_type='Story')
         subtask1_issue = self._mock_jira_issue('SUB-1', 'Subtask 1', 'testuser', [1 * self.SECS_PER_DAY, None, None],
-                                              parent_key='STORY-1', issue_type='Sub-task')
+                                               parent_key='STORY-1', issue_type='Sub-task')
         subtask2_issue = self._mock_jira_issue('SUB-2', 'Subtask 2', 'testuser', [0.5 * self.SECS_PER_DAY, None, None],
-                                              parent_key='STORY-1', issue_type='Sub-task')
+                                               parent_key='STORY-1', issue_type='Sub-task')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic_issue, story_issue, subtask1_issue, subtask2_issue]
@@ -784,9 +837,9 @@ class TestJiraJuggler(unittest.TestCase):
     def test_nested_taskjuggler_output(self, jira_mock):
         """Test nested TaskJuggler output format"""
         epic_issue = self._mock_jira_issue('EPIC-1', 'Test Epic', 'testuser', [0, None, None],
-                                          issue_type='Epic')
+                                           issue_type='Epic')
         story_issue = self._mock_jira_issue('STORY-1', 'Story 1', 'testuser', [1 * self.SECS_PER_DAY, None, None],
-                                           epic_key='EPIC-1', issue_type='Story')
+                                            epic_key='EPIC-1', issue_type='Story')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic_issue, story_issue]
@@ -809,11 +862,11 @@ class TestJiraJuggler(unittest.TestCase):
         """Test handling of mixed hierarchical and flat task structures"""
         # Mix of epic with children and standalone tasks
         epic_issue = self._mock_jira_issue('EPIC-1', 'Test Epic', 'testuser', [0, None, None],
-                                          issue_type='Epic')
+                                           issue_type='Epic')
         story_issue = self._mock_jira_issue('STORY-1', 'Story in Epic', 'testuser', [1 * self.SECS_PER_DAY, None, None],
-                                           epic_key='EPIC-1', issue_type='Story')
+                                            epic_key='EPIC-1', issue_type='Story')
         standalone_issue = self._mock_jira_issue('TASK-1', 'Standalone Task', 'testuser', [2 * self.SECS_PER_DAY, None, None],
-                                                issue_type='Task')
+                                                 issue_type='Task')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic_issue, story_issue, standalone_issue]
@@ -840,9 +893,9 @@ class TestJiraJuggler(unittest.TestCase):
     def test_epic_disabled_flat_output(self, jira_mock):
         """Test that epic relationships are ignored when enable_epics=False"""
         epic_issue = self._mock_jira_issue('EPIC-1', 'Test Epic', 'testuser', [3 * self.SECS_PER_DAY, None, None],
-                                          issue_type='Epic')
+                                           issue_type='Epic')
         story_issue = self._mock_jira_issue('STORY-1', 'Story 1', 'testuser', [1 * self.SECS_PER_DAY, None, None],
-                                           epic_key='EPIC-1', issue_type='Story')
+                                            epic_key='EPIC-1', issue_type='Story')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic_issue, story_issue]
@@ -863,10 +916,10 @@ class TestJiraJuggler(unittest.TestCase):
         """Test handling of child issues where parent/epic is not in the query results"""
         # Story references epic that's not in results
         story_issue = self._mock_jira_issue('STORY-1', 'Orphaned Story', 'testuser', [1 * self.SECS_PER_DAY, None, None],
-                                           epic_key='EPIC-99', issue_type='Story')
+                                            epic_key='EPIC-99', issue_type='Story')
         # Subtask references parent that's not in results
         subtask_issue = self._mock_jira_issue('SUB-1', 'Orphaned Subtask', 'testuser', [0.5 * self.SECS_PER_DAY, None, None],
-                                             parent_key='STORY-99', issue_type='Sub-task')
+                                              parent_key='STORY-99', issue_type='Sub-task')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [story_issue, subtask_issue]
@@ -891,7 +944,7 @@ class TestJiraJuggler(unittest.TestCase):
         """Test detection of epic links through various field names"""
         # Create stories with different epic field patterns
         story_epic_field = self._mock_jira_issue('STORY-1', 'Story with epic field', 'testuser',
-                                                [1 * self.SECS_PER_DAY], epic_key='EPIC-1', issue_type='Story')
+                                                 [1 * self.SECS_PER_DAY], epic_key='EPIC-1', issue_type='Story')
         epic_issue = self._mock_jira_issue('EPIC-1', 'Test Epic', 'testuser', [0, None, None], issue_type='Epic')
 
         jirahandle = jira_mock.return_value
@@ -915,13 +968,13 @@ class TestJiraJuggler(unittest.TestCase):
 
         # Create comprehensive hierarchy: Epic -> Story -> Subtask
         epic_issue = self._mock_jira_issue('EPIC-1', 'User Management Epic', 'john', [0, None, None],
-                                          issue_type='Epic')
+                                           issue_type='Epic')
         story_issue = self._mock_jira_issue('STORY-1', 'User Authentication Story', 'john', [2 * self.SECS_PER_DAY, None, None],
-                                           epic_key='EPIC-1', issue_type='Story')
+                                            epic_key='EPIC-1', issue_type='Story')
         subtask1_issue = self._mock_jira_issue('SUB-1', 'Login UI Subtask', 'jane', [1 * self.SECS_PER_DAY, None, None],
-                                              parent_key='STORY-1', issue_type='Sub-task')
+                                               parent_key='STORY-1', issue_type='Sub-task')
         subtask2_issue = self._mock_jira_issue('SUB-2', 'Authentication Logic', 'john', [1 * self.SECS_PER_DAY, None, None],
-                                              parent_key='STORY-1', issue_type='Sub-task')
+                                               parent_key='STORY-1', issue_type='Sub-task')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic_issue, story_issue, subtask1_issue, subtask2_issue]
@@ -992,7 +1045,7 @@ class TestJiraJuggler(unittest.TestCase):
         # Create the same issues
         epic_issue = self._mock_jira_issue('EPIC-1', 'Test Epic', 'dev1', [1 * self.SECS_PER_DAY, None, None], issue_type='Epic')
         story_issue = self._mock_jira_issue('STORY-1', 'Test Story', 'dev1', [1 * self.SECS_PER_DAY, None, None],
-                                           epic_key='EPIC-1', issue_type='Story')
+                                            epic_key='EPIC-1', issue_type='Story')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic_issue, story_issue]
@@ -1054,19 +1107,19 @@ class TestJiraJuggler(unittest.TestCase):
         epic2_issue = self._mock_jira_issue('EPIC-2', 'Backend Epic', 'team2', [0, None, None], issue_type='Epic')
 
         story1_issue = self._mock_jira_issue('STORY-1', 'UI Components', 'dev1', [3 * self.SECS_PER_DAY, None, None],
-                                            epic_key='EPIC-1', issue_type='Story')
+                                             epic_key='EPIC-1', issue_type='Story')
         story2_issue = self._mock_jira_issue('STORY-2', 'API Endpoints', 'dev2', [2 * self.SECS_PER_DAY, None, None],
-                                            epic_key='EPIC-2', issue_type='Story')
+                                             epic_key='EPIC-2', issue_type='Story')
 
         # Standalone task (no epic)
         standalone_issue = self._mock_jira_issue('TASK-1', 'Documentation Update', 'writer', [1 * self.SECS_PER_DAY, None, None],
-                                               issue_type='Task')
+                                                 issue_type='Task')
 
         # Subtasks for first story
         sub1_issue = self._mock_jira_issue('SUB-1', 'Button Component', 'dev1', [1 * self.SECS_PER_DAY, None, None],
-                                          parent_key='STORY-1', issue_type='Sub-task')
+                                           parent_key='STORY-1', issue_type='Sub-task')
         sub2_issue = self._mock_jira_issue('SUB-2', 'Form Component', 'dev1', [2 * self.SECS_PER_DAY, None, None],
-                                          parent_key='STORY-1', issue_type='Sub-task')
+                                           parent_key='STORY-1', issue_type='Sub-task')
 
         jirahandle = jira_mock.return_value
         jirahandle.enhanced_search_issues.return_value = [epic1_issue, epic2_issue, story1_issue, story2_issue,
