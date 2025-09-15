@@ -27,6 +27,9 @@ JIRA_PAGE_SIZE = 50
 
 TAB = ' ' * 4
 
+# Module logger
+LOGGER = logging.getLogger('jira-juggler')
+
 
 def fetch_credentials():
     """ Fetches the credentials from the .env file by default or, alternatively, from the user's input
@@ -42,8 +45,10 @@ def fetch_credentials():
     if not api_token:
         password = config('JIRA_PASSWORD', default='')
         if password:
-            logging.warning('Basic authentication with a JIRA password may be deprecated. '
-                            'Consider defining an API token as environment variable JIRA_API_TOKEN instead.')
+            LOGGER.warning(
+                'Basic authentication with a JIRA password may be deprecated. '
+                'Consider defining an API token as environment variable JIRA_API_TOKEN instead.'
+            )
             return username, password
         else:
             api_token = getpass(f'JIRA API token (or password) for {username}: ')
@@ -59,7 +64,13 @@ def set_logging_level(loglevel):
     numeric_level = getattr(logging, loglevel.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % loglevel)
-    logging.basicConfig(level=numeric_level)
+    # Configure the named logger
+    LOGGER.setLevel(numeric_level)
+    if not LOGGER.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+        handler.setFormatter(formatter)
+        LOGGER.addHandler(handler)
 
 
 def to_identifier(key):
@@ -152,8 +163,8 @@ def determine_username(user):
     elif getattr(user, 'displayName', ''):
         full_name = user.displayName
         username = f'"{full_name}"'
-        logging.error(f"Failed to fetch email address of {full_name!r}: they restricted its visibility; "
-                      f"using identifier {username!r} as fallback value.")
+        LOGGER.error(f"Failed to fetch email address of {full_name!r}: they restricted its visibility; "
+                     f"using identifier {username!r} as fallback value.")
     else:
         raise Exception(f"Failed to determine username of {user}")
     return username
@@ -168,8 +179,8 @@ def determine_default_links(link_types_per_name):
                 default_links.append(link)
                 break
         else:
-            logging.warning("Failed to find any of these default jira-juggler issue link types in your Jira project "
-                            f"configuration: {list(link_types)}. Use --links if you think this is a problem.")
+            LOGGER.warning("Failed to find any of these default jira-juggler issue link types in your Jira project "
+                           f"configuration: {list(link_types)}. Use --links if you think this is a problem.")
     return default_links
 
 
@@ -183,7 +194,7 @@ def determine_links(jira_link_types, input_links):
         all_jira_links = chain.from_iterable((link_type.inward, link_type.outward) for link_type in jira_link_types)
         missing_links = unique_input_links.difference(all_jira_links)
         if missing_links:
-            logging.warning(f"Failed to find links {missing_links} in your configuration in Jira")
+            LOGGER.warning(f"Failed to find links {missing_links} in your configuration in Jira")
         valid_links = unique_input_links - missing_links
     return valid_links
 
@@ -327,7 +338,7 @@ class JugglerTaskEffort(JugglerTaskProperty):
                 self.value = 0
         else:
             self.value = self.DEFAULT_VALUE
-            logging.warning('No estimate found for %s, assuming %s%s', jira_issue.key, self.DEFAULT_VALUE, self.UNIT)
+            LOGGER.warning('No estimate found for %s, assuming %s%s', jira_issue.key, self.DEFAULT_VALUE, self.UNIT)
 
     def validate(self, task, tasks):
         """Validates (and corrects) the current task property
@@ -337,11 +348,16 @@ class JugglerTaskEffort(JugglerTaskProperty):
             tasks (list): Modifiable list of JugglerTask instances to which the current task belongs. Will be used to
                 verify relations to other tasks.
         """
+        # If effort is None, this is a container task; assert and skip validation.
+        if self.value is None:
+            assert getattr(task, 'children', None), (
+                f"Effort is None only allowed for container tasks; {task.key} has no children")
+            return
         if self.value == 0:
-            logging.warning('Estimate for %s, is 0. Excluding', task.key)
+            LOGGER.warning('Estimate for %s, is 0. Excluding', task.key)
             tasks.remove(task)
         elif self.value < self.MINIMAL_VALUE:
-            logging.warning('Estimate %s%s too low for %s, assuming %s%s', self.value, self.UNIT, task.key, self.MINIMAL_VALUE, self.UNIT)
+            LOGGER.warning('Estimate %s%s too low for %s, assuming %s%s', self.value, self.UNIT, task.key, self.MINIMAL_VALUE, self.UNIT)
             self.value = self.MINIMAL_VALUE
 
 
@@ -387,7 +403,7 @@ class JugglerTaskDepends(JugglerTaskProperty):
         task_ids = [to_identifier(tsk.key) for tsk in tasks]
         for val in list(self.value):
             if val not in task_ids:
-                logging.warning('Removing link to %s for %s, as not within scope', val, task.key)
+                LOGGER.warning('Removing link to %s for %s, as not within scope', val, task.key)
                 self.value.remove(val)
 
     def __str__(self):
@@ -444,17 +460,33 @@ class JugglerTask:
 task {id} "{description}" {{
 {tab}Jira "{key}"
 {props}
+{children}
+}}
+'''
+    NESTED_TEMPLATE = '''
+task {id} "{description}" {{
+{tab}Jira "{key}"
+{props}
+{children_content}
 }}
 '''
 
     def __init__(self, jira_issue=None):
-        logging.info('Create JugglerTask for %s', jira_issue.key)
+        if jira_issue:
+            LOGGER.info('Create JugglerTask for %s', jira_issue.key)
 
         self.key = self.DEFAULT_KEY
         self.summary = self.DEFAULT_SUMMARY
         self.properties = {}
         self.issue = None
         self._resolved_at_date = None
+
+        # Epic and parent-child relationship attributes
+        self.parent_key = None
+        self.epic_key = None
+        self.children = []
+        self.is_epic = False
+        self.is_subtask = False
 
         if jira_issue:
             self.load_from_jira_issue(jira_issue)
@@ -469,6 +501,10 @@ task {id} "{description}" {{
         self.issue = jira_issue
         summary = jira_issue.fields.summary.replace('\"', '\\\"')
         self.summary = (summary[:self.MAX_SUMMARY_LENGTH] + '...') if len(summary) > self.MAX_SUMMARY_LENGTH else summary
+
+        # Detect issue type and relationships
+        self._detect_hierarchy_relationships(jira_issue)
+
         if self.is_resolved:
             self.resolved_at_date = self.determine_resolved_at_date()
         self.properties['allocate'] = JugglerTaskAllocate(jira_issue)
@@ -485,7 +521,7 @@ task {id} "{description}" {{
             property_identifier (str): Identifier of property type
         """
         if self.key == self.DEFAULT_KEY:
-            logging.error('Found a task which is not initialized')
+            LOGGER.error('Found a task which is not initialized')
         self.properties[property_identifier].validate(self, tasks)
 
     def __str__(self):
@@ -495,11 +531,28 @@ task {id} "{description}" {{
             str: String representation of the task in juggler syntax
         """
         props = "".join(map(str, self.properties.values()))
-        return self.TEMPLATE.format(id=to_identifier(self.key),
-                                    key=self.key,
-                                    tab=TAB,
-                                    description=self.summary.replace('\"', '\\\"'),
-                                    props=props)
+
+        # If this task has children, use nested template
+        if self.children:
+            children_content = ""
+            for child in self.children:
+                # Indent child tasks
+                child_str = str(child).strip()
+                children_content += "\n" + "\n".join(TAB + line for line in child_str.split("\n") if line.strip())
+
+            return self.NESTED_TEMPLATE.format(id=to_identifier(self.key),
+                                               key=self.key,
+                                               tab=TAB,
+                                               description=self.summary.replace('\"', '\\\"'),
+                                               props=props,
+                                               children_content=children_content)
+        else:
+            return self.TEMPLATE.format(id=to_identifier(self.key),
+                                        key=self.key,
+                                        tab=TAB,
+                                        description=self.summary.replace('\"', '\\\"'),
+                                        props=props,
+                                        children="")
 
     @property
     def is_resolved(self):
@@ -539,6 +592,55 @@ task {id} "{description}" {{
                         closed_at_date = parser.isoparse(change.created)
         return closed_at_date
 
+    def _detect_hierarchy_relationships(self, jira_issue):
+        """Detects epic and parent-child relationships from Jira issue
+
+        Args:
+            jira_issue (jira.resources.Issue): The Jira issue to analyze
+        """
+        # Check if this is an Epic
+        issue_type = getattr(jira_issue.fields, 'issuetype', None)
+        if issue_type and hasattr(issue_type, 'name'):
+            self.is_epic = issue_type.name.lower() == 'epic'
+            self.is_subtask = issue_type.name.lower() == 'sub-task' or getattr(issue_type, 'subtask', False)
+
+        # Check for parent relationship (subtasks)
+        if hasattr(jira_issue.fields, 'parent') and jira_issue.fields.parent:
+            self.parent_key = jira_issue.fields.parent.key
+
+        # Check for epic link (various possible field names)
+        epic_link_fields = ['epic', 'epiclink', 'customfield_10014', 'customfield_10008']  # Common epic link fields
+        for field_name in epic_link_fields:
+            if hasattr(jira_issue.fields, field_name):
+                epic_field = getattr(jira_issue.fields, field_name)
+                if epic_field:
+                    if hasattr(epic_field, 'key'):
+                        self.epic_key = epic_field.key
+                    elif isinstance(epic_field, str):
+                        self.epic_key = epic_field
+                    break
+
+    def add_child(self, child_task):
+        """Add a child task to this task
+
+        Args:
+            child_task (JugglerTask): Child task to add
+        """
+        if child_task not in self.children:
+            self.children.append(child_task)
+
+    def calculate_rolled_up_effort(self):
+        """Calculate effort including children for epics and parent tasks
+
+        Returns:
+            float: Total effort including children
+        """
+        # For container tasks (any task with children), the effort is the sum of the children only.
+        # Parent/container tasks are not allowed to have their own effort.
+        if self.children:
+            return sum(child.calculate_rolled_up_effort() for child in self.children)
+        return self.properties['effort'].value if not self.properties['effort'].is_empty else 0
+
 
 class JiraJuggler:
     """Class for task-juggling Jira results"""
@@ -555,11 +657,11 @@ class JiraJuggler:
         """
         global id_to_username_mapping
         id_to_username_mapping = {}
-        logging.info('Jira endpoint: %s', endpoint)
+        LOGGER.info('Jira endpoint: %s', endpoint)
 
         global jirahandle
         jirahandle = JIRA(endpoint, basic_auth=(user, token))
-        logging.info('Query: %s', query)
+        LOGGER.info('Query: %s', query)
         self.query = query
         self.issue_count = 0
 
@@ -577,7 +679,7 @@ class JiraJuggler:
             for task in list(tasks):
                 task.validate(tasks, property_identifier)
 
-    def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name='', **kwargs):
+    def load_issues_from_jira(self, depend_on_preceding=False, sprint_field_name='', enable_epics=False, **kwargs):
         """Loads issues from Jira
 
         Args:
@@ -589,49 +691,195 @@ class JiraJuggler:
             list: A list of JugglerTask instances
         """
         tasks = []
-        busy = True
-        while busy:
+        next_page_token = None
+
+        while True:
             try:
-                issues = jirahandle.search_issues(self.query, maxResults=JIRA_PAGE_SIZE, startAt=self.issue_count,
-                                                  expand='changelog')
+                # Use enhanced_search_issues for API v3 compatibility
+                result = jirahandle.enhanced_search_issues(
+                    jql_str=self.query,
+                    maxResults=JIRA_PAGE_SIZE,
+                    nextPageToken=next_page_token,
+                    expand='changelog'
+                )
+
+                # enhanced_search_issues returns a ResultList, extract issues
+                if hasattr(result, 'iterable'):
+                    issues = list(result.iterable)
+                else:
+                    issues = list(result)
+
             except JIRAError as err:
-                logging.error(f'Failed to query JIRA: {err}')
+                LOGGER.error(f'Failed to query JIRA: {err}')
                 if err.status_code == 401:
-                    logging.error('Please check your JIRA credentials in the .env file or environment variables.')
+                    LOGGER.error('Please check your JIRA credentials in the .env file or environment variables.')
                 elif err.status_code == 403:
-                    logging.error('You do not have permission to access this JIRA project or query.')
+                    LOGGER.error('You do not have permission to access this JIRA project or query.')
                 elif err.status_code == 404:
-                    logging.error('The JIRA endpoint is not found. Please check the endpoint URL.')
-                elif err.status_code == 400:
+                    LOGGER.error('The JIRA endpoint is not found. Please check the endpoint URL.')
+                elif err.status_code == 400 or err.status_code == 410:
                     # Parse and display the specific JQL errors more clearly
                     try:
                         error_data = err.response.json()
                         if 'errorMessages' in error_data:
                             for error_msg in error_data['errorMessages']:
-                                logging.error(f'JIRA query error: {error_msg}')
+                                LOGGER.error(f'JIRA query error: {error_msg}')
                     except Exception:
                         pass  # Fall back to generic error if JSON parsing fails
 
-                    logging.error('Invalid JQL query syntax. Please check your query.')
+                    if err.status_code == 410:
+                        LOGGER.error('JIRA API v2 has been deprecated. Using enhanced search API.')
+                    else:
+                        LOGGER.error('Invalid JQL query syntax. Please check your query.')
                 else:
-                    logging.error(f'An unexpected error occurred: {err}')
+                    LOGGER.error(f'An unexpected error occurred: {err}')
                 return None
 
             if len(issues) <= 0:
-                busy = False
+                break
 
             self.issue_count += len(issues)
             for issue in issues:
-                logging.debug(f'Retrieved {issue.key}: {issue.fields.summary}')
+                LOGGER.debug(f'Retrieved {issue.key}: {issue.fields.summary}')
                 tasks.append(JugglerTask(issue))
 
+            # Check if there are more pages
+            if hasattr(result, 'nextPageToken') and result.nextPageToken:
+                next_page_token = result.nextPageToken
+            else:
+                break
+
+        # Build hierarchical relationships if enabled BEFORE validation so epic rules
+        # can consider zero-effort children.
+        if enable_epics:
+            tasks = self.build_hierarchical_tasks(tasks)
+
+        # Now validate tasks (may exclude remaining zero-effort tasks where appropriate)
         self.validate_tasks(tasks)
+
         if sprint_field_name:
             self.sort_tasks_on_sprint(tasks, sprint_field_name)
         tasks.sort(key=cmp_to_key(self.compare_status))
         if depend_on_preceding:
             self.link_to_preceding_task(tasks, **kwargs)
         return tasks
+
+    def build_hierarchical_tasks(self, tasks):
+        """Builds hierarchical relationships between tasks (epics, parents, children)
+
+        Args:
+            tasks (list): List of JugglerTask instances
+
+        Returns:
+            list: List of top-level JugglerTask instances with child relationships established
+        """
+        # Create mappings for quick lookups
+        task_by_key = {task.key: task for task in tasks}
+
+        # Build parent-child relationships
+        for task in tasks:
+            # Handle subtask -> parent relationship
+            if task.parent_key and task.parent_key in task_by_key:
+                parent_task = task_by_key[task.parent_key]
+                parent_task.add_child(task)
+                LOGGER.debug(f'Added {task.key} as child of parent {parent_task.key}')
+
+            # Handle story/task -> epic relationship
+            elif task.epic_key and task.epic_key in task_by_key:
+                epic_task = task_by_key[task.epic_key]
+                epic_task.add_child(task)
+                LOGGER.debug(f'Added {task.key} as child of epic {epic_task.key}')
+
+        # Process epics with special logic
+        tasks = self._process_epic_logic(tasks, task_by_key)
+
+        # Container tasks are not allowed an effort attribute; drop it for any task with children
+        for task in tasks:
+            if task.children and 'effort' in task.properties:
+                task.properties['effort'].value = None
+
+        # Return only top-level tasks (those without parents)
+        top_level_tasks = []
+        for task in tasks:
+            # A task is top-level if it doesn't have a parent/epic relationship with another task in our set
+            is_child = False
+            if task.parent_key and task.parent_key in task_by_key:
+                is_child = True
+            elif task.epic_key and task.epic_key in task_by_key:
+                is_child = True
+
+            if not is_child:
+                top_level_tasks.append(task)
+
+        LOGGER.info(f'Built hierarchy: {len(tasks)} total tasks, {len(top_level_tasks)} top-level tasks')
+        return top_level_tasks
+
+    def _process_epic_logic(self, tasks, task_by_key):
+        """Process epic-specific logic for effort estimation and child handling.
+
+        Implements the following rules:
+        1. If an epic has one or more children with effort at 0, discard the children and treat the epic as a single task
+        2. If that epic has no effort estimate set, exclude it and warn about it like we do for regular tasks
+        3. When both epic and children have estimates and the sum doesn't match the epic estimate, log a warning with the difference
+
+        Args:
+            tasks (list): List of JugglerTask instances
+            task_by_key (dict): Dictionary mapping task keys to task instances
+
+        Returns:
+            list: Modified list of tasks after applying epic logic
+        """
+        tasks_to_remove = set()
+
+        for task in tasks:
+            if not task.is_epic or not task.children:
+                continue
+
+            # Check if any children have zero (or effectively zero) effort
+            # Consider effectively-zero when original Jira estimates are None/0 and computed effort <= MINIMAL_VALUE
+            def _is_effectively_zero(child_task):
+                try:
+                    fields = child_task.issue.fields if child_task.issue else None
+                    orig = getattr(fields, 'timeoriginalestimate', None) if fields else None
+                    rem = getattr(fields, 'timeestimate', None) if fields else None
+                    eff = child_task.properties['effort'].value
+                    return (orig in (None, 0)) and (rem in (None, 0)) and (eff is not None and eff <= JugglerTaskEffort.MINIMAL_VALUE)
+                except Exception:
+                    return False
+
+            children_with_zero_effort = [child for child in task.children if _is_effectively_zero(child)]
+
+            if children_with_zero_effort:
+                # Rule 1: Epic has children with 0 effort - discard all children and treat epic as single task
+                LOGGER.info(f'Epic {task.key} has {len(children_with_zero_effort)} children with 0 effort. '
+                            f'Discarding all children and treating epic as single task.')
+
+                # Remove children from the epic
+                for child in task.children:
+                    tasks_to_remove.add(child)
+                    LOGGER.debug(f'Removing child {child.key} from epic {task.key}')
+
+                task.children = []
+
+                # Rule 2: If epic has no effort estimate, exclude it and warn
+                if task.properties['effort'].value == 0:
+                    LOGGER.warning(f'Estrimate for epic {task.key}, is 0. Excluding')
+                    tasks_to_remove.add(task)
+                    continue
+
+            else:
+                # Rule 3: Check if epic effort matches sum of children efforts
+                epic_effort = task.properties['effort'].value
+                children_total_effort = sum(child.calculate_rolled_up_effort() for child in task.children)
+
+                if (epic_effort is not None and epic_effort > 0) and children_total_effort > 0 and abs(epic_effort - children_total_effort) > 0.01:
+                    # Epic and children both have estimates, but they don't match
+                    difference = epic_effort - children_total_effort
+                    LOGGER.warning(f'Epic {task.key} effort estimate ({epic_effort}d) differs from sum of children '
+                                   f'({children_total_effort}d) by {difference:+.2f}d')
+
+        # Remove tasks that should be excluded
+        return [task for task in tasks if task not in tasks_to_remove]
 
     def juggle(self, output=None, **kwargs):
         """Queries JIRA and generates task-juggler output from given issues
@@ -745,7 +993,7 @@ class JiraJuggler:
                                 task.sprint_priority = prio
                                 if hasattr(sprint_info, 'startDate'):
                                     task.sprint_start_date = parser.parse(sprint_info.startDate)
-        logging.debug("Sorting tasks based on sprint information...")
+        LOGGER.debug("Sorting tasks based on sprint information...")
         tasks.sort(key=cmp_to_key(self.compare_sprint_priority))
 
     @staticmethod
@@ -766,7 +1014,7 @@ class JiraJuggler:
                 try:
                     return parser.parse(start_date_match.group(1))
                 except parser.ParserError as err:
-                    logging.debug("Failed to parse start date of sprint of issue %s: %s", issue_key, err)
+                    LOGGER.debug("Failed to parse start date of sprint of issue %s: %s", issue_key, err)
                     return None
 
     @staticmethod
@@ -841,6 +1089,9 @@ def main():
     argpar.add_argument('-c', '--current-date', default=datetime.now(), type=parser.isoparse,
                         help='Specify the offset-naive date to use for calculation as current date. If no value is '
                              'specified, the current value of the system clock is used.')
+    argpar.add_argument('-E', '--enable-epics', action='store_true',
+                        help='Enable support for Jira Epics and parent-child task hierarchies. '
+                             'This will create nested TaskJuggler tasks for epics with their child issues.')
     args = argpar.parse_args()
     set_logging_level(args.loglevel)
 
@@ -853,7 +1104,8 @@ def main():
         depend_on_preceding=args.depend_on_preceding,
         sprint_field_name=args.sprint_field_name,
         weeklymax=args.weeklymax,
-        current_date=args.current_date
+        current_date=args.current_date,
+        enable_epics=args.enable_epics
     )
     return 0
 
