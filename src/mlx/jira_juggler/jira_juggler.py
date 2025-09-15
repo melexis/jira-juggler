@@ -45,8 +45,10 @@ def fetch_credentials():
     if not api_token:
         password = config('JIRA_PASSWORD', default='')
         if password:
-            LOGGER.warning('Basic authentication with a JIRA password may be deprecated. '
-                            'Consider defining an API token as environment variable JIRA_API_TOKEN instead.')
+            LOGGER.warning(
+                'Basic authentication with a JIRA password may be deprecated. '
+                'Consider defining an API token as environment variable JIRA_API_TOKEN instead.'
+            )
             return username, password
         else:
             api_token = getpass(f'JIRA API token (or password) for {username}: ')

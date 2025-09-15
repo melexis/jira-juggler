@@ -12,16 +12,16 @@ from collections import namedtuple
 import unittest
 
 try:
-    from unittest.mock import MagicMock, patch, call
+    from unittest.mock import MagicMock, patch
 except ImportError:
     print("unittest.mock import failed")
     try:
-        from mock import MagicMock, patch, call
+        from mock import MagicMock, patch
     except ImportError:
         print("mock import failed. installing mock")
         import pip
         pip.main(['install', 'mock'])
-        from mock import MagicMock, patch, call
+        from mock import MagicMock, patch
 
 import mlx.jira_juggler.jira_juggler as dut
 
@@ -517,14 +517,17 @@ class TestJiraJuggler(unittest.TestCase):
                 'created': '2022-05-25T14:07:11.974+0200',
             },
         ]
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.ESTIMATE1, self.ESTIMATE2, self.ESTIMATE3],
-                                                                             self.DEPENDS1,
-                                                                             histories=histories,
-                                                                             status="Resolved"),
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [[
+            self._mock_jira_issue(
+                self.KEY1,
+                self.SUMMARY1,
+                self.ASSIGNEE1,
+                [self.ESTIMATE1, self.ESTIMATE2, self.ESTIMATE3],
+                self.DEPENDS1,
+                histories=histories,
+                status="Resolved",
+            ),
+        ], []]
         issues = juggler.juggle()
         jira_mock_object.enhanced_search_issues.assert_called()
         self.assertEqual(1, len(issues))
@@ -559,14 +562,17 @@ class TestJiraJuggler(unittest.TestCase):
             },
         ]
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.ESTIMATE1, None, self.ESTIMATE3],
-                                                                             self.DEPENDS1,
-                                                                             histories=histories,
-                                                                             status="Closed"),
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [[
+            self._mock_jira_issue(
+                self.KEY1,
+                self.SUMMARY1,
+                self.ASSIGNEE1,
+                [self.ESTIMATE1, None, self.ESTIMATE3],
+                self.DEPENDS1,
+                histories=histories,
+                status="Closed",
+            ),
+        ], []]
         issues = juggler.juggle()
         jira_mock_object.enhanced_search_issues.assert_called()
         self.assertEqual(1, len(issues))
@@ -590,38 +596,49 @@ class TestJiraJuggler(unittest.TestCase):
             },
         ]
 
-        jira_mock_object.enhanced_search_issues.side_effect = [[self._mock_jira_issue(self.KEY1,
-                                                                             self.SUMMARY1,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.ESTIMATE1, None, None],
-                                                                             self.DEPENDS1,
-                                                                             histories=histories,
-                                                                             status="Resolved"),
-                                                       self._mock_jira_issue(self.KEY2,
-                                                                             self.SUMMARY2,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.SECS_PER_DAY * val for val in [5, 3.2, 2.4]],
-                                                                             self.DEPENDS1,
-                                                                             status="Open"),
-                                                       self._mock_jira_issue(self.KEY3,
-                                                                             self.SUMMARY3,
-                                                                             self.ASSIGNEE1,
-                                                                             [self.ESTIMATE2, None, self.ESTIMATE3],
-                                                                             self.DEPENDS2,
-                                                                             status="Open"),
-                                                       self._mock_jira_issue('Different-assignee',
-                                                                             self.SUMMARY3,
-                                                                             self.ASSIGNEE2,
-                                                                             [self.ESTIMATE1, None, None],
-                                                                             self.DEPENDS1,
-                                                                             status="Open"),
-                                                       self._mock_jira_issue('Last-assignee',
-                                                                             self.SUMMARY3,
-                                                                             self.ASSIGNEE3,
-                                                                             [self.ESTIMATE1, None, None],
-                                                                             [self.KEY1, self.KEY2],
-                                                                             status="Open"),
-                                                       ], []]
+        jira_mock_object.enhanced_search_issues.side_effect = [[
+            self._mock_jira_issue(
+                self.KEY1,
+                self.SUMMARY1,
+                self.ASSIGNEE1,
+                [self.ESTIMATE1, None, None],
+                self.DEPENDS1,
+                histories=histories,
+                status="Resolved",
+            ),
+            self._mock_jira_issue(
+                self.KEY2,
+                self.SUMMARY2,
+                self.ASSIGNEE1,
+                [self.SECS_PER_DAY * val for val in [5, 3.2, 2.4]],
+                self.DEPENDS1,
+                status="Open",
+            ),
+            self._mock_jira_issue(
+                self.KEY3,
+                self.SUMMARY3,
+                self.ASSIGNEE1,
+                [self.ESTIMATE2, None, self.ESTIMATE3],
+                self.DEPENDS2,
+                status="Open",
+            ),
+            self._mock_jira_issue(
+                'Different-assignee',
+                self.SUMMARY3,
+                self.ASSIGNEE2,
+                [self.ESTIMATE1, None, None],
+                self.DEPENDS1,
+                status="Open",
+            ),
+            self._mock_jira_issue(
+                'Last-assignee',
+                self.SUMMARY3,
+                self.ASSIGNEE3,
+                [self.ESTIMATE1, None, None],
+                [self.KEY1, self.KEY2],
+                status="Open",
+            ),
+        ], []]
         issues = juggler.juggle(depend_on_preceding=True, weeklymax=1.0, current_date=parser.isoparse('2021-08-23T13:30'))
         jira_mock_object.enhanced_search_issues.assert_called()
         self.assertEqual(5, len(issues))
