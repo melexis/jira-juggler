@@ -115,9 +115,9 @@ This will create nested TaskJuggler tasks where:
     Only tasks included in your query results will be part of the hierarchy. Child tasks without their parents in
     the query results will appear as standalone top-level tasks.
 
-------------------
+--------------------
 Command-line Options
-------------------
+--------------------
 
 Key command-line options include:
 
